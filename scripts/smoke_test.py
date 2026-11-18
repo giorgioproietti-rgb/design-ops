@@ -13,6 +13,10 @@ ap = argparse.ArgumentParser()
 ap.add_argument("--url", required=True)
 ap.add_argument("--origin", default="")
 a = ap.parse_args()
+if "SOTTODOMINIO" in a.url or "<" in a.url:
+    sys.exit("ERRORE: nell'indirizzo c'è ancora il segnaposto. Usa quello vero, per esempio https://design-ops-wiki.mio-sottodominio.workers.dev")
+if not a.url.startswith(("http://", "https://")):
+    sys.exit("ERRORE: l'indirizzo deve iniziare con https://")
 origin = a.origin
 if not origin:
     m = re.search(r'^ALLOWED_ORIGIN\s*=\s*"([^"]*)"', (ROOT / "worker" / "wrangler.toml").read_text(encoding="utf-8"), re.M)
@@ -32,6 +36,8 @@ def call(method, body=None):
             return e.code, json.loads(e.read().decode() or "{}")
         except Exception:
             return e.code, {}
+    except (urllib.error.URLError, OSError) as e:
+        sys.exit("ERRORE: l'indirizzo %s non è raggiungibile (%s). Controlla che il Worker sia pubblicato e che l'indirizzo sia scritto bene." % (a.url, getattr(e, "reason", e)))
 
 
 s, d = call("GET")

@@ -33,7 +33,7 @@
       sc *= 0.5 + 0.5 * hit / qt.length;
       if (qn.length > 8 && d.norm.indexOf(qn) >= 0) sc *= 1.5;
       sc *= d.s.boost || 1;
-      res.push({ s: d.s, score: sc, hit: hit });
+      res.push({ s: d.s, score: sc, hit: hit, cov: hit / qt.length });
     });
     res.sort(function (a, c) { return c.score - a.score; });
     return res.slice(0, limit || 8);

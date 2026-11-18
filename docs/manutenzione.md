@@ -17,7 +17,12 @@ Il plugin non contiene la documentazione: la documentazione vive online e si ric
 1. Modifica i file in `docs/`. Le risposte stanno in `docs/faq.md`: una domanda per titolo `###`.
 2. Fai commit su `main`. Il flusso "Sito" ricostruisce e ripubblica il sito, e aggiorna anche il servizio delle risposte intelligenti.
 
-Ogni nuova funzione richiede due cose: la sua domanda in `docs/faq.md` e una domanda di prova in `site/wiki-test-queries.json`. I controlli automatici verificano che la ricerca trovi la sezione attesa.
+Ogni nuova funzione richiede tre cose:
+- la sua domanda in `docs/faq.md`, con sotto il titolo l'argomento come commento: `<!-- argomento: per-iniziare -->`. Gli argomenti validi sono in `site/topics.json`; senza argomento il sito non si costruisce;
+- una domanda di prova in `site/wiki-test-queries.json`;
+- se è tra le più cercate, il titolo in `popular` di `site/topics.json`: sono i pulsanti sotto la ricerca nella home.
+
+I controlli automatici verificano che la ricerca trovi la sezione attesa e che la pagina funzioni.
 
 ## Rilasciare una nuova versione del plugin
 1. Modifica le skill o i comandi in `plugin/`.

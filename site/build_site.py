@@ -89,10 +89,17 @@ def main():
         for t, body in split(text, level):
             add(group, t or intro_title or (top.group(1) if top else p.stem), body, boost)
 
+    cfg = json.loads((ROOT / "site" / "topics.json").read_text(encoding="utf-8"))
+    topic_ids = {t["id"] for t in cfg["topics"]}
     faq = (ROOT / "docs" / "faq.md").read_text(encoding="utf-8")
     for t, body in split(re.sub(r"^# .+\n", "", faq, count=1), 3):
         if t:
-            add("Domande frequenti", t, body, 1.3)
+            m = re.match(r"\s*<!--\s*argomento:\s*([a-z0-9-]+)\s*-->\s*", body)
+            if not m or m.group(1) not in topic_ids:
+                raise SystemExit("ERRORE: la domanda %r in docs/faq.md non ha un argomento valido (commento '<!-- argomento: ... -->' sotto il titolo; validi: %s)" % (t, ", ".join(sorted(topic_ids))))
+            add("Domande frequenti", t, body[m.end():], 1.3)
+            if sections and sections[-1]["title"] == typo(t):
+                sections[-1]["topic"] = m.group(1)
     doc("docs/guida.md", "Guida", 2, 1.15, "Panoramica")
     doc("CHANGELOG.md", "Rilasci", 2, 0.9, "Rilasci")
     for f in sorted((ROOT / "docs").glob("*.md")):
@@ -114,9 +121,16 @@ def main():
 
     for i, s in enumerate(sections, 1):
         s["id"] = "s-%d" % i
+    ids_by_title = {s["title"]: s["id"] for s in sections if s["group"] == "Domande frequenti"}
+    popular = []
+    for ti in cfg["popular"]:
+        if typo(ti) not in ids_by_title:
+            raise SystemExit("ERRORE: la domanda popolare %r in site/topics.json non esiste in docs/faq.md" % ti)
+        popular.append(ids_by_title[typo(ti)])
+    topics_out = [{"id": t["id"], "title": typo(t["title"]), "icon": t["icon"], "desc": typo(t["desc"])} for t in cfg["topics"]]
 
     # pagina
-    kb = json.dumps({"sections": sections}, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
+    kb = json.dumps({"sections": sections, "topics": topics_out, "popular": popular}, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
     meta = json.dumps({"version": version, "date": date_it, "workerUrl": a.worker_url}, ensure_ascii=False)
     tpl = (ROOT / "site" / "wiki-template.html").read_text(encoding="utf-8")
     js = (ROOT / "site" / "wiki-search.js").read_text(encoding="utf-8")
