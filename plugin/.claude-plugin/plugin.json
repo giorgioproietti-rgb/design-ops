@@ -1,0 +1,17 @@
+{
+  "name": "design-ops",
+  "displayName": "Design Ops – Processo UX",
+  "version": "1.0.3",
+  "description": "Processo UX guidato da Design Ops, dalla richiesta in Planner alla consegna di un file solido alla UI: benchmark e ricerca, personas, architettura e wireframe su Figma, validazione con personaggi critici, handoff alla UI.",
+  "author": {
+    "name": "Team UX/UI Design"
+  },
+  "keywords": [
+    "ux",
+    "design",
+    "figma",
+    "wireframe",
+    "personas",
+    "handoff"
+  ]
+}

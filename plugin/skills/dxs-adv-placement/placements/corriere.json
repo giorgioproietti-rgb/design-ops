@@ -1,0 +1,68 @@
+{
+  "testata": "Corriere",
+  "fonti": [
+    "RCS Pubblicità – Restyling HP Corriere 2025 – Settembre 2025 (HP desktop e mobile)",
+    "Restyling PAGINE FOGLIA DESKTOP Corriere – Gennaio 2020 v1.2 (articolo, gallery, card, infografica)"
+  ],
+  "componenti": {
+    "d": {"nome": "ADV_item / Desk", "setKey": "182b984104d42c264c27f68440217f7eb8fab190"},
+    "m": {"nome": "ADV_item / Mobile", "setKey": "7467535ff80f3a3ce547d4095d0b073a8b970ed1"}
+  },
+  "varianti": {
+    "d": ["Masthead","Half Page","Frame 1","Leaderboard","GiantPushbar","Giantmasthead","Manchette","Pushbar","Position 1 - Intropage","Position 1 - Overlay","Taboola","Pushdown","Middle","Frame 2","Frame 3","Frame x","Video player","Position 7 / Overlay Floor /Leaderboard","Position 7 / Overlay Floor / GiantPushbar","Bacheca","Native"],
+    "m": ["TopLeft 50","Intropage","TopLeft 100","Intropage - Overlay","Frame 1 - 250","Frame 1 - Halfpage","Frame 2 - 250","Frame 3","Frame X","Bottom 1","Small Right","Bottom 2","VideoPlayer","Bacheca","Topleft / Leaderboard","Topleft / Masthead","Position 1","Small Right 2","TopLeft / GiantPushbar"]
+  },
+  "template": {
+    "HomePage/D": {
+      "nota": "Topleft no sticky; Skin solo fino a fine 1° blocco; fascioni (preFooter) a mano: vedi references/corriere.md",
+      "top": [["adv","Masthead"]],
+      "aside": [
+        ["ed","1° Player video",179], ["advbox","Ticker",300,100], ["ed","2° Player video",179],
+        ["adv","Frame 1"], ["ed","3 contenuti editoriali",360], ["adv","Native"],
+        ["ed","5 contenuti editoriali",600], ["adv","Frame 2"], ["ed","3° Player video · sticky",179],
+        ["ed","Contenuti personalizzati (Piano)",300], ["adv","Frame 3"],
+        ["ed","5 contenuti editoriali",600], ["adv","Frame x"]
+      ],
+      "inline": [
+        {"after": 6, "block": ["adv","Native"], "label": "Bottom"},
+        {"after": 11, "block": ["adv","Leaderboard"], "label": "Bottomleft"},
+        {"after": 14, "block": ["adv","Leaderboard"], "label": "Bottomleft X"},
+        {"after": 17, "block": ["adv","Native"], "label": "Bottom2"}
+      ]
+    },
+    "HomePage/M": {
+      "nota": "Topleft sticky on top 10 s; FrameX ogni 5 contenuti dopo il 35°; ordine fasce può differire dal desktop",
+      "top": [["adv","TopLeft 50"]],
+      "inline": [
+        {"after": 3, "block": ["adv","Small Right"], "label": "Ticker"},
+        {"after": 6, "block": ["adv","Frame 1 - 250"]},
+        {"after": 9, "block": ["ed","Box Mktg",120]},
+        {"after": 12, "block": ["adv","Bottom 2"], "label": "Bottom"},
+        {"after": 15, "block": ["adv","Frame 2 - 250"]},
+        {"after": 18, "block": ["adv","Bottom 2"], "label": "Bottom3"},
+        {"after": 21, "block": ["ed","Box Mktg",120]},
+        {"after": 24, "block": ["advbox","Native strip",343,200]},
+        {"after": 27, "block": ["adv","Bottom 2"], "label": "Bottom2"},
+        {"after": 30, "block": ["adv","Frame 3"]},
+        {"after": 33, "block": ["advbox","Native strip",343,200]},
+        {"after": 35, "every": 5, "block": ["adv","Frame X"]}
+      ]
+    },
+    "Articolo/D": {
+      "nota": "Colonna dx sticky: altezza sx − dx ≥ 1000 px; video player a discrezione redazione, ≥1 capoverso da Bottom1; Salute senza Taboola",
+      "top": [["adv","Masthead"]],
+      "aside": [
+        ["ed","Contenuto editoriale",300], ["adv","Frame 1"], ["adv","Native"], ["sticky",1000],
+        ["ed","Contenuto editoriale / Box Mkt",200], ["adv","Bacheca"], ["adv","Frame 2"], ["advbox","Widget Native",300,120], ["sticky",1000],
+        ["ed","Contenuto editoriale / Box Mkt",200], ["adv","Frame 3"], ["advbox","Widget Native",300,120], ["sticky",1000],
+        ["adv","Frame x"], ["advbox","Widget Native",300,120]
+      ],
+      "inline": [
+        {"after": 2, "count": "text", "block": ["advbox","Bottom1 · Inread",640,365], "label": "Bottom1"}
+      ],
+      "preFooter": [["adv","Taboola"]],
+      "taboola": [0]
+    },
+    "Articolo/M": {"mancante": true, "nota": "Regole ADV articolo mobile non ancora fornite"}
+  }
+}

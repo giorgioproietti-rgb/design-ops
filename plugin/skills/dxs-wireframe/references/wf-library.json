@@ -1,0 +1,25 @@
+{
+  "libreria": "DXS Corriere – Wireframe library",
+  "fileKey": "VWSR4VWyhOv4nGIx59scGv",
+  "pagina": "Wireframe",
+  "nota": "WF/Page = Device × Header (Homepage|Sezione) × Colonne (1|2, solo desktop); slot Contenuto, Aside, PreFooter. Le chiavi 'tpl' mappano i tipi di pagina della specifica sulle varianti; '/1' e '/2' forzano il numero di colonne su desktop.",
+  "tpl": {
+    "HomePage/D": "5000a33fd33bfc993c8330273572579c377a5124",
+    "HomePage/D/1": "b2b4c50091eb6a52f485cac3d430e8c2641a1b70",
+    "Articolo/D": "0d094926278cde08bddca6ad672ffadc6f23e384",
+    "Articolo/D/1": "aa1d5bdb758df1b532a24a17b9da341679e4b3d1",
+    "Default/D": "aa1d5bdb758df1b532a24a17b9da341679e4b3d1",
+    "Default/D/2": "0d094926278cde08bddca6ad672ffadc6f23e384",
+    "HomePage/M": "17cc04c2b0981e23b500499530f2225c7dbd41ac",
+    "Articolo/M": "2376361e4f3eacbcb5181c451bed0a951a842d46",
+    "Default/M": "2376361e4f3eacbcb5181c451bed0a951a842d46"
+  },
+  "slot": {
+    "content": "Contenuto",
+    "aside": "Aside",
+    "pre": "PreFooter"
+  },
+  "block": "5098d3a5ee0e5b6573038b040b292812f138212f",
+  "textBlock": "c4146b42e86826b9729fd1855f72f9d94c2d369e",
+  "componentSet": "6e74d8478d2a26a5d6b1ccb47ed123aa23b258cd"
+}

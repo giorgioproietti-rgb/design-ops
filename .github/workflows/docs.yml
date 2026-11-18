@@ -1,0 +1,56 @@
+name: Sito
+# Ricostruisce e pubblica il sito e il servizio delle risposte a ogni modifica di documentazione, plugin o servizio.
+on:
+  push:
+    branches: [main]
+    paths: ["docs/**", "site/**", "plugin/**", "worker/**", "CHANGELOG.md", ".github/workflows/docs.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: pip install markdown
+      - run: python scripts/validate_plugin.py
+      - run: python site/build_site.py --worker-url "${{ vars.WORKER_URL }}"
+      - run: npm install --no-audit --no-fund
+      - run: npm test
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist/site
+      # Servizio delle risposte: si pubblica solo se i secret di Cloudflare sono configurati.
+      - name: Pubblica il servizio delle risposte
+        if: env.CF_TOKEN != ''
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: worker
+      - name: Verifica che le risposte funzionino
+        if: env.CF_TOKEN != '' && vars.WORKER_URL != ''
+        run: python scripts/smoke_test.py --url "${{ vars.WORKER_URL }}"
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

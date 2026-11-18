@@ -1,0 +1,6 @@
+dist/
+node_modules/
+worker/kb.json
+worker/search.js
+__pycache__/
+*.pyc

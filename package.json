@@ -1,0 +1,12 @@
+{
+  "name": "design-ops-wiki",
+  "private": true,
+  "description": "Sito e servizio delle risposte di Design Ops: collaudi automatici",
+  "scripts": {
+    "test": "node site/test_wiki.js dist/site/index.html && node tests/worker.test.mjs && node tests/page.test.cjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.0",
+    "jsdom": "^31.0.0"
+  }
+}

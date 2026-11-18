@@ -1,0 +1,14 @@
+name: Controllo servizio
+# Ogni lunedì verifica che le risposte funzionino. Se un modello viene ritirato da Cloudflare, il controllo fallisce
+# e GitHub avvisa chi gestisce il repository.
+on:
+  schedule:
+    - cron: "0 7 * * 1"
+  workflow_dispatch:
+jobs:
+  verifica:
+    if: ${{ vars.WORKER_URL != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 scripts/smoke_test.py --url "${{ vars.WORKER_URL }}"
