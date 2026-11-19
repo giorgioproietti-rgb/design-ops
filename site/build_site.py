@@ -105,6 +105,35 @@ def main():
     for f in sorted((ROOT / "docs").glob("*.md")):
         if f.name not in ("faq.md", "guida.md"):
             doc("docs/" + f.name, "Per chi amministra", 2, 0.9)
+    flow = json.loads((ROOT / "site" / "flow.json").read_text(encoding="utf-8"))
+
+    def bl(items):
+        return "\n".join("- " + i for i in items)
+
+    def flow_md(st):
+        rows = ["**Cosa fa.** " + st["summary"] + "."]
+        if st.get("input"): rows.append("**Input**\n" + bl(st["input"]))
+        if st.get("output"): rows.append("**Output**\n" + bl(st["output"]))
+        if st.get("commands"): rows.append("**Comandi.** " + ", ".join("`%s`" % c for c in st["commands"]))
+        if st.get("replies"): rows.append("**Risposte tipiche.** " + ", ".join("`%s`" % c for c in st["replies"]))
+        if st.get("control"): rows.append("**Controllo %d: %s.** %s" % (st["control"]["n"], st["control"]["title"], st["control"]["text"]))
+        if st.get("session"): rows.append("**Sessione.** " + st["session"] + ".")
+        if st.get("gate"): rows.append("**Gate.** " + st["gate"] + ".")
+        if st.get("lost"): rows.append("**Se ti perdi.** " + st["lost"])
+        return "\n\n".join(rows)
+
+    flow_ids = {}
+    for st in [flow["start"]] + flow["steps"]:
+        add("Il percorso", "Passo: " + st["title"], flow_md(st), 1.0)
+        if sections and sections[-1]["title"] == typo("Passo: " + st["title"]):
+            sections[-1]["flowId"] = st["id"]
+    for ex in flow["exchanges"]:
+        add("Il percorso", "Scambio %d con il Product Snapshot: %s" % (ex["n"], ex["title"]),
+            "Proposta ancora da definire.\n\n**Dal design allo snapshot.** %s\n\n**Dallo snapshot al design.** %s" % (ex["toSnapshot"], ex["fromSnapshot"]), 1.0)
+        if sections and sections[-1]["title"].startswith(typo("Scambio %d" % ex["n"])):
+            sections[-1]["flowId"] = ex["id"]
+    add("Il percorso", "Passo: " + flow["outside"]["title"], flow["outside"]["text"], 0.9)
+    add("Il percorso", "In qualsiasi momento", flow["anytime"]["text"], 0.9)
     skills = ROOT / "plugin" / "skills"
     for sk in sorted(skills.iterdir()):
         sm = sk / "SKILL.md"
@@ -127,10 +156,35 @@ def main():
         if typo(ti) not in ids_by_title:
             raise SystemExit("ERRORE: la domanda popolare %r in site/topics.json non esiste in docs/faq.md" % ti)
         popular.append(ids_by_title[typo(ti)])
+    def faq_ids(titles, where):
+        out = []
+        for ti in titles:
+            if typo(ti) not in ids_by_title:
+                raise SystemExit("ERRORE: la domanda %r citata in site/flow.json (%s) non esiste in docs/faq.md" % (ti, where))
+            out.append(ids_by_title[typo(ti)])
+        return out
+
+    def tx(o):
+        if isinstance(o, str): return typo(o)
+        if isinstance(o, list): return [tx(i) for i in o]
+        if isinstance(o, dict): return {k: (tx(v) if k not in ("id", "who", "after", "n", "cmd") else v) for k, v in o.items()}
+        return o
+    flow_out = tx(flow)
+    src = {flow["start"]["id"]: flow["start"], flow["outside"]["id"]: flow["outside"]}
+    src.update({s["id"]: s for s in flow["steps"]})
+    for item in [flow_out["start"]] + flow_out["steps"] + [flow_out["outside"]]:
+        item["faq"] = faq_ids(src[item["id"]].get("faq", []), item["id"])
+    steps_ids = [s["id"] for s in flow["steps"]] + [flow["outside"]["id"]]
+    for ex in flow["exchanges"]:
+        if ex["after"] not in steps_ids:
+            raise SystemExit("ERRORE: lo scambio %s in site/flow.json segue un passo che non esiste (%s)" % (ex["id"], ex["after"]))
+    for sec in sections:
+        if sec.get("flowId") is None:
+            sec.pop("flowId", None)
     topics_out = [{"id": t["id"], "title": typo(t["title"]), "icon": t["icon"], "desc": typo(t["desc"])} for t in cfg["topics"]]
 
     # pagina
-    kb = json.dumps({"sections": sections, "topics": topics_out, "popular": popular}, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
+    kb = json.dumps({"sections": sections, "topics": topics_out, "popular": popular, "flow": flow_out}, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
     meta = json.dumps({"version": version, "date": date_it, "workerUrl": a.worker_url}, ensure_ascii=False)
     tpl = (ROOT / "site" / "wiki-template.html").read_text(encoding="utf-8")
     js = (ROOT / "site" / "wiki-search.js").read_text(encoding="utf-8")

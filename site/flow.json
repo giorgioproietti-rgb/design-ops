@@ -1,0 +1,271 @@
+{
+ "start": {
+  "id": "partenza",
+  "title": "Punto di partenza condiviso",
+  "summary": "Richiesta e requisiti: la stessa base per UX e Product Snapshot",
+  "input": [
+   "Scheda in Planner (bucket “Nuovi progetti UX”, etichetta della testata)",
+   "Requisiti del brief"
+  ],
+  "output": [
+   "Cartella del progetto creata dal flusso automatico",
+   "Base comune per UX e Product Snapshot"
+  ],
+  "commands": [],
+  "replies": [],
+  "lost": "Se la richiesta cambia, registralo con `Aggiorna`: UX e Product Snapshot devono restare allineati.",
+  "faq": [
+   "Come inizio un nuovo progetto?"
+  ]
+ },
+ "steps": [
+  {
+   "id": "avvio",
+   "title": "Avvio",
+   "who": "assistente",
+   "summary": "Poche domande per partire",
+   "input": [
+    "Brief in `00_Input/`",
+    "Link a Figma, FigJam e riferimenti"
+   ],
+   "output": [
+    "`project.md` compilato (fase `benchmark`)",
+    "Copertina del file Figma compilata",
+    "Voce nel changelog"
+   ],
+   "commands": [
+    "Avvia",
+    "Read Me"
+   ],
+   "replies": [],
+   "control": null,
+   "session": "È la prima sessione del progetto",
+   "gate": "",
+   "lost": "Se manca il brief, Avvia si ferma: caricalo in `00_Input/` e riscrivi `Avvia`.",
+   "faq": [
+    "Cosa fa il comando Avvia?",
+    "Come inizio un nuovo progetto?"
+   ]
+  },
+  {
+   "id": "ricerca",
+   "title": "Ricerca e benchmark",
+   "who": "assistente",
+   "summary": "Ricerche, competitor, principi",
+   "input": [
+    "Brief e requisiti",
+    "Cartelle `Ricerca` e `Papers` (sola lettura)"
+   ],
+   "output": [
+    "`01_Blender/`: benchmark, insight, principi, journey",
+    "Pagine di ricerca su FigJam",
+    "Domande aperte"
+   ],
+   "commands": [
+    "Procedi"
+   ],
+   "replies": [],
+   "control": {
+    "n": 1,
+    "title": "Quadro approvato",
+    "text": "Il designer controlla obiettivo, utenti e domande aperte."
+   },
+   "session": "Sessione nuova",
+   "gate": "Benchmark",
+   "lost": "Cosa manca? `Stato` mostra le voci aperte. Per nuovo materiale usa `Aggiorna`.",
+   "faq": [
+    "Come passo allo step successivo?",
+    "Perché ogni step richiede una sessione nuova?"
+   ]
+  },
+  {
+   "id": "personas",
+   "title": "Personas",
+   "who": "assistente",
+   "summary": "Gli utenti, anche i più difficili",
+   "input": [
+    "Segmenti e journey del passo precedente",
+    "Personas della testata"
+   ],
+   "output": [
+    "`02_Personas/`: personaggi del progetto",
+    "Tabella segmenti ↔ personaggi",
+    "Schede su FigJam"
+   ],
+   "commands": [
+    "Procedi"
+   ],
+   "replies": [],
+   "control": null,
+   "session": "Sessione nuova",
+   "gate": "Personas",
+   "lost": "I segmenti senza personaggio finiscono tra le voci aperte: guarda `Stato`.",
+   "faq": [
+    "Cosa significano gli ID che compaiono nei file?"
+   ]
+  },
+  {
+   "id": "wireframe",
+   "title": "Wireframe",
+   "who": "assistente",
+   "summary": "Pagine e flussi su Figma",
+   "input": [
+    "Journey, requisiti, personas e principi",
+    "Libreria Wireframe attiva nel file Figma",
+    "Vincoli (`vincoli.md`), se ci sono"
+   ],
+   "output": [
+    "`03_Wireframe/pagine.md` (e `architettura.md` nei progetti nuovi)",
+    "Frame annotati nella pagina Wireframe, con legenda",
+    "Copertura dei requisiti"
+   ],
+   "commands": [
+    "Procedi",
+    "Architettura",
+    "Crea WF",
+    "Crea WF --ADV"
+   ],
+   "replies": [],
+   "control": {
+    "n": 2,
+    "title": "Wireframe pronti",
+    "text": "Il designer approva l'elenco delle pagine e poi i wireframe."
+   },
+   "session": "Sessione nuova",
+   "gate": "Wireframe",
+   "lost": "I frame ritoccati a mano sono protetti: non vengono rigenerati senza il tuo ok.",
+   "faq": [
+    "Cosa succede se modifico a mano un frame generato?",
+    "Quale libreria usano i wireframe?"
+   ]
+  },
+  {
+   "id": "validazione",
+   "title": "Validazione",
+   "who": "assistente",
+   "summary": "Test e correzioni",
+   "input": [
+    "Wireframe pronti",
+    "Personaggi critici",
+    "Vincoli"
+   ],
+   "output": [
+    "Report in `04_Validazione/` (problemi `VAL-NN`)",
+    "Decisioni del designer",
+    "Correzioni (massimo 2 revisioni per pagina)"
+   ],
+   "commands": [
+    "Procedi"
+   ],
+   "replies": [
+    "accetto 1 2 · respingo 3 · rimando 4"
+   ],
+   "control": {
+    "n": 3,
+    "title": "Decisione",
+    "text": "Il designer decide quali problemi correggere, rinviare o scartare."
+   },
+   "session": "Sessione nuova, anche per le correzioni",
+   "gate": "Wireframe validato",
+   "lost": "In alternativa al test: segna ✅ le pagine UX in Figma e scrivi `Stato`.",
+   "faq": [
+    "Come funziona la validazione dei wireframe?",
+    "Posso validare senza il test?"
+   ]
+  },
+  {
+   "id": "ui",
+   "title": "Passaggio alla UI",
+   "who": "assistente",
+   "summary": "Note e user flow per la UI",
+   "input": [
+    "Wireframe validati",
+    "`pagine.md` e file Figma"
+   ],
+   "output": [
+    "`05_Handoff/handoff.md`: casi e azioni",
+    "Annotation `Tap` sui frame",
+    "User flow in un FigJam",
+    "Progetto `chiuso`"
+   ],
+   "commands": [
+    "Handoff",
+    "Handoff --note",
+    "Handoff --flow"
+   ],
+   "replies": [],
+   "control": {
+    "n": 4,
+    "title": "Pronto per la UI",
+    "text": "Il designer approva casi, azioni e user flow prima della consegna."
+   },
+   "session": "Sessione nuova",
+   "gate": "Passaggio alla UI",
+   "lost": "Se i wireframe cambiano dopo la consegna, rilancia `Handoff --note`.",
+   "faq": [
+    "Come funziona il passaggio alla UI?"
+   ]
+  }
+ ],
+ "outside": {
+  "id": "lavoro-ui",
+  "title": "Lavoro sulla UI",
+  "summary": "Fuori dal percorso",
+  "text": "Il lavoro sulla UI, l'audit del design system e la consegna agli sviluppatori hanno regole proprie e non sono gestiti dal plugin.",
+  "faq": [
+   "Cosa non è incluso nel plugin?"
+  ]
+ },
+ "exchanges": [
+  {
+   "id": "x1",
+   "n": 1,
+   "after": "wireframe",
+   "title": "Durante i wireframe",
+   "toSnapshot": "Una scelta cambia un requisito: si annota con `Annota` e lo snapshot si aggiorna.",
+   "fromSnapshot": "Le pagine nuove partono dalla versione aggiornata."
+  },
+  {
+   "id": "x2",
+   "n": 2,
+   "after": "validazione",
+   "title": "Dopo la validazione",
+   "toSnapshot": "Le decisioni sui requisiti entrano nello snapshot.",
+   "fromSnapshot": "Design Ops aggiorna il progetto e rilancia le pagine da rivedere."
+  },
+  {
+   "id": "x3",
+   "n": 3,
+   "after": "ui",
+   "title": "Al passaggio alla UI",
+   "toSnapshot": "Casi e azioni dell'handoff entrano nello snapshot.",
+   "fromSnapshot": "L'handoff indica la versione dello snapshot usata."
+  },
+  {
+   "id": "x4",
+   "n": 4,
+   "after": "lavoro-ui",
+   "title": "Durante la UI",
+   "toSnapshot": "Le decisioni prese disegnando la UI tornano nello snapshot.",
+   "fromSnapshot": "Chi lavora sulla UI parte dalla versione corrente."
+  }
+ ],
+ "anytime": {
+  "title": "In qualsiasi momento",
+  "text": "Nuovo materiale o cambio di perimetro: usa `Aggiorna`. Lo snapshot segnala le contraddizioni e Design Ops indica i passi da rifare."
+ },
+ "help": [
+  {
+   "cmd": "Stato",
+   "text": "Dove sono: fase, versione, prossimo step, voci aperte."
+  },
+  {
+   "cmd": "Annota",
+   "text": "Registra una decisione, un feedback, un vincolo o una condivisione."
+  },
+  {
+   "cmd": "Aggiorna",
+   "text": "Nuovo materiale o cambio di obiettivo, personas o device."
+  }
+ ]
+}

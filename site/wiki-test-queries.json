@@ -1,0 +1,96 @@
+{
+ "in_tema": [
+  [
+   "come installo il plugin",
+   "Come installo il plugin"
+  ],
+  [
+   "dopo la card in Planner non è stata creata la cartella",
+   "non è stata creata la cartella"
+  ],
+  [
+   "cos'è un vincolo",
+   "vincoli.md"
+  ],
+  [
+   "posso validare senza il test",
+   "Posso validare senza il test"
+  ],
+  [
+   "quante revisioni per pagina",
+   "Quante revisioni automatiche"
+  ],
+  [
+   "Annota condiviso",
+   "Come registro che ho condiviso"
+  ],
+  [
+   "product snapshot",
+   "Come funziona lo scambio con il Product Snapshot"
+  ],
+  [
+   "come aggiungo gli ADV",
+   "Come aggiungo gli ADV"
+  ],
+  [
+   "cosa succede se modifico a mano un frame",
+   "modifico a mano un frame"
+  ],
+  [
+   "versione maggiore minore patch",
+   "Come funzionano le versioni"
+  ],
+  [
+   "dove trovo il piano di collaudo",
+   "piano di collaudo"
+  ],
+  [
+   "perché ogni step vuole una sessione nuova",
+   "sessione nuova"
+  ],
+  [
+   "il plugin non si aggiorna",
+   "Come si aggiorna il plugin"
+  ],
+  [
+   "cosa significa VAL-03",
+   "Cosa significano gli ID"
+  ],
+  [
+   "handoff alla UI user flow",
+   "Come funziona il passaggio alla UI"
+  ],
+  [
+   "come so se ho l'ultima versione",
+   "Come so quale versione"
+  ],
+  [
+   "cosa c'è di nuovo nell'ultima versione",
+   "Cosa è cambiato nell'ultima versione"
+  ],
+  [
+   "cosa succede ai progetti già avviati dopo l'aggiornamento",
+   "Cosa succede ai progetti già avviati"
+  ],
+  [
+   "come rilascio una nuova versione",
+   "Come rilascio una nuova versione"
+  ],
+  [
+   "come funzionano le risposte del sito",
+   "Come funzionano la ricerca e le risposte del sito"
+  ],
+  [
+   "dove vedo input e output dei passi",
+   "Dove vedo input, output e comandi"
+  ],
+  [
+   "come invio un feedback al team",
+   "Come segnalo un problema"
+  ]
+ ],
+ "fuori_tema": [
+  "ricetta della carbonara",
+  "previsioni meteo domani"
+ ]
+}

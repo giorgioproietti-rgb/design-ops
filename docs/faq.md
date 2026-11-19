@@ -8,6 +8,10 @@ Design Ops è il plugin del team UX/UI Design. Porta un progetto dalla richiesta
 <!-- argomento: per-iniziare -->
 Avvio, Benchmark e ricerca (`magic-blender`), Personas (`dxs-personas`), Architettura e wireframe (`dxs-wireframe`), Wireframe validato (test con `dxs-personas --testDesign` oppure pagine UX ✅ in Figma) e Passaggio alla UI (`dxs-handoff`). `design-ops` li orchestra: legge `project.md`, lancia lo step giusto e scrive manifest e changelog solo dopo l'ok del designer.
 
+### Dove vedo input, output e comandi di ogni passo?
+<!-- argomento: per-iniziare -->
+Nella pagina "Il percorso" del sito: uno schema interattivo con tutti i passi, dal punto di partenza condiviso alla consegna alla UI. Cliccando un passo vedi in sintesi cosa fa, che input serve, che output produce, quali comandi usare, quale controllo deve fare il designer e cosa fare se ti perdi. Se non sai a che punto sei, scrivi `Stato`.
+
 ### Quali comandi posso usare?
 <!-- argomento: per-iniziare -->
 Cinque: `Avvia`, `Procedi`, `Stato`, `Aggiorna`, `Annota`. Si scrivono come prima parola del messaggio, oppure come comandi con la barra: `/design-ops:avvia`, `/design-ops:procedi`, `/design-ops:stato`, `/design-ops:aggiorna`, `/design-ops:annota`.
@@ -160,7 +164,7 @@ La ricerca cerca per parole in tutta la documentazione. Il pulsante "Chiedi all'
 
 ### Come segnalo un problema o propongo un miglioramento?
 <!-- argomento: problemi -->
-Segnalalo al team UX/UI Design. Le correzioni escono in una nuova versione del plugin e compaiono nella sezione Rilasci.
+Usa il pulsante "Feedback" del sito: il messaggio arriva direttamente al team su Teams, con la pagina o la ricerca da cui parti. Scegli se è un suggerimento, un errore o una domanda senza risposta. Le correzioni escono in una nuova versione del plugin e compaiono nella sezione Rilasci.
 
 ### Cosa significano gli ID che compaiono nei file?
 <!-- argomento: progetto-e-file -->

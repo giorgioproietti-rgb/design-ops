@@ -3,31 +3,31 @@
   {
    "id": "per-iniziare",
    "title": "Per iniziare",
-   "icon": "🚀",
+   "icon": "flag",
    "desc": "Cos'è Design Ops, i comandi e come avviare un progetto"
   },
   {
    "id": "progetto-e-file",
    "title": "Il progetto e i suoi file",
-   "icon": "🗂️",
+   "icon": "folder",
    "desc": "Fasi, gate, versioni, decisioni e vincoli"
   },
   {
    "id": "wireframe-e-ui",
    "title": "Wireframe, validazione e UI",
-   "icon": "🧩",
+   "icon": "layout",
    "desc": "Dal wireframe alla consegna alla UI"
   },
   {
    "id": "installazione",
    "title": "Installazione e aggiornamenti",
-   "icon": "⬇️",
+   "icon": "download",
    "desc": "Installare, aggiornare e sapere che versione hai"
   },
   {
    "id": "problemi",
    "title": "Problemi e limiti",
-   "icon": "🛟",
+   "icon": "help",
    "desc": "Cosa fare se qualcosa non funziona e cosa non è incluso"
   }
  ],
@@ -35,7 +35,6 @@
   "Come inizio un nuovo progetto?",
   "Quali comandi posso usare?",
   "Come installo il plugin?",
-  "Cosa fa il comando Avvia?",
-  "Come funziona la validazione dei wireframe?"
+  "Cosa fa il comando Avvia?"
  ]
 }

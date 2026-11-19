@@ -84,11 +84,71 @@ function configured(env) {
   return p === 'anthropic' || !!env.LLM_BASE_URL;
 }
 
+// ---------- Feedback verso Teams ----------
+// Il flusso di Teams ("Post to a channel when a webhook request is received") ha un indirizzo con una firma segreta:
+// resta qui, nel secret TEAMS_WEBHOOK_URL, e non compare mai nelle pagine. Il sito invia solo i campi del modulo.
+const FB_LIMIT = 5, FB_MAX = 1000, FB_BODY = 4096;
+const fbSeen = new Map();
+const TIPI = { suggerimento: 'Suggerimento', errore: 'Errore', domanda: 'Domanda senza risposta', altro: 'Altro' };
+const clean = (v, max) => String(v == null ? '' : v).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '').replace(/[\[\]]/g, m => (m === '[' ? '(' : ')')).trim().slice(0, max);
+function fbTooMany(ip) {
+  const now = Date.now(), arr = (fbSeen.get(ip) || []).filter(t => now - t < WINDOW_MS);
+  arr.push(now); fbSeen.set(ip, arr);
+  if (fbSeen.size > 5000) fbSeen.clear();
+  return arr.length > FB_LIMIT;
+}
+export function feedbackCard(f, origin) {
+  const url = f.path ? origin + f.path + (f.id ? '#' + f.id : '') : '';
+  const facts = [];
+  if (f.titolo) facts.push({ title: 'Pagina', value: f.titolo });
+  if (f.ricerca) facts.push({ title: 'Ricerca', value: f.ricerca });
+  if (f.contatto) facts.push({ title: 'Contatto', value: f.contatto });
+  if (f.versione) facts.push({ title: 'Plugin', value: 'v' + f.versione });
+  facts.push({ title: 'Ricevuto', value: new Date().toISOString().replace('T', ' ').slice(0, 16) + ' UTC' });
+  const card = {
+    type: 'AdaptiveCard', $schema: 'http://adaptivecards.io/schemas/adaptive-card.json', version: '1.2', msteams: { width: 'Full' },
+    body: [
+      { type: 'TextBlock', text: 'Feedback sulla wiki Design Ops', weight: 'Bolder', size: 'Medium', wrap: true },
+      { type: 'TextBlock', text: TIPI[f.tipo], weight: 'Bolder', color: f.tipo === 'errore' ? 'Attention' : 'Accent', spacing: 'None', wrap: true },
+      { type: 'TextBlock', text: f.messaggio, wrap: true },
+      { type: 'FactSet', facts },
+    ],
+  };
+  if (url) card.actions = [{ type: 'Action.OpenUrl', title: 'Apri la pagina', url }];
+  return { type: 'message', attachments: [{ contentType: 'application/vnd.microsoft.card.adaptive', contentUrl: null, content: card }] };
+}
+async function handleFeedback(request, env) {
+  if (request.headers.get('Origin') !== env.ALLOWED_ORIGIN) return reply({ error: 'origine non consentita' }, 403, env);
+  if (!env.TEAMS_WEBHOOK_URL) return reply({ error: 'feedback non attivo' }, 503, env);
+  if (fbTooMany(request.headers.get('CF-Connecting-IP') || 'n/d')) return reply({ error: 'troppi invii' }, 429, env);
+  let b;
+  try {
+    const raw = await request.text();
+    if (raw.length > FB_BODY) return reply({ error: 'richiesta troppo lunga' }, 413, env);
+    b = JSON.parse(raw) || {};
+  } catch (e) { return reply({ error: 'richiesta non valida' }, 400, env); }
+  if (b.sito) return reply({ ok: true }, 200, env); // campo trappola riempito da un programma: si finge di accettare
+  const messaggio = clean(b.messaggio, FB_MAX);
+  if (messaggio.length < 3) return reply({ error: 'messaggio non valido' }, 400, env);
+  const pg = b.pagina && typeof b.pagina === 'object' ? b.pagina : {};
+  const f = {
+    tipo: TIPI[b.tipo] ? b.tipo : 'altro', messaggio, contatto: clean(b.contatto, 120), titolo: clean(pg.titolo, 120), ricerca: clean(b.ricerca, 300),
+    id: /^[a-z0-9-]{1,60}$/.test(String(pg.id || '')) ? pg.id : '', path: /^\/[A-Za-z0-9._~\-\/]{0,100}$/.test(String(pg.path || '')) ? pg.path : '',
+    versione: /^[0-9.]{1,20}$/.test(String(b.versione || '')) ? b.versione : '',
+  };
+  try {
+    const r = await fetch(env.TEAMS_WEBHOOK_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(feedbackCard(f, env.ALLOWED_ORIGIN)) });
+    if (!r.ok) return reply({ error: 'servizio non disponibile' }, 502, env);
+    return reply({ ok: true }, 200, env);
+  } catch (e) { return reply({ error: 'servizio non disponibile' }, 502, env); }
+}
+
 export async function handle(request, env) {
   if (!env.ALLOWED_ORIGIN) return new Response('Configurazione mancante', { status: 500 });
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: corsHeaders(env) });
-  if (request.method === 'GET') return reply({ ok: true, version: kb.version, sections: SECTIONS.length, provider: provider(env) }, 200, env);
+  if (request.method === 'GET') return reply({ ok: true, version: kb.version, sections: SECTIONS.length, provider: provider(env), feedback: !!env.TEAMS_WEBHOOK_URL }, 200, env);
   if (request.method !== 'POST') return reply({ error: 'metodo non consentito' }, 405, env);
+  if (new URL(request.url).pathname.replace(/\/+$/, '') === '/feedback') return handleFeedback(request, env);
   if (request.headers.get('Origin') !== env.ALLOWED_ORIGIN) return reply({ error: 'origine non consentita' }, 403, env);
   if (!configured(env)) return reply({ error: 'configurazione mancante' }, 500, env);
   if (tooMany(request.headers.get('CF-Connecting-IP') || 'n/d')) return reply({ error: 'troppe richieste' }, 429, env);

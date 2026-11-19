@@ -35,6 +35,12 @@ Il sito mostra in alto la versione del plugin e la data di aggiornamento, e la s
 
 Versioni: patch per correzioni, minore per nuove funzioni, maggiore per cambi che rompono i progetti esistenti.
 
+## Il percorso interattivo
+La pagina "Il percorso" legge `site/flow.json`: per ogni passo ci sono titolo, sintesi, input, output, comandi, controllo del designer, sessione, gate, "se ti perdi" e domande correlate; per ogni scambio con il Product Snapshot ci sono le due direzioni. Quando cambia un passo del processo, aggiorna quel file: il sito, la ricerca e le risposte dell'assistente si aggiornano insieme. Le domande correlate devono esistere in `docs/faq.md`, altrimenti il sito non si costruisce.
+
+## Feedback
+Il pulsante "Feedback" invia un messaggio al canale di Teams scelto: attivazione e problemi in `docs/feedback-teams.md`.
+
 ## Controlli automatici
 A ogni modifica il repository verifica che ogni skill abbia nome e descrizione validi e che i riferimenti ai file esistano, che il sito si costruisca, che la ricerca trovi la sezione attesa per le domande di prova, che il servizio delle risposte si comporti come previsto (sicurezza, modelli di riserva, cache, limiti) e che la pagina funzioni. Ogni lunedì un controllo a parte verifica che le risposte del servizio pubblicato funzionino ancora.
 

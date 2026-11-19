@@ -46,8 +46,11 @@
   function excerpt(s, q, n) {
     var t = s.text.replace(/\s+/g, ' ').trim();
     if (t.length <= n) return t;
-    var p = firstMatch(t, q), start = p > 60 ? p - 60 : 0;
-    return (start ? '… ' : '') + t.slice(start, start + n) + (start + n < t.length ? ' …' : '');
+    var p = firstMatch(t, q), start = p > 60 ? p - 60 : 0, guard = 0;
+    while (start > 0 && start < t.length && t[start - 1] !== ' ' && guard++ < 30) start++;
+    var end = Math.min(t.length, start + n);
+    if (end < t.length) { var ls = t.lastIndexOf(' ', end); if (ls > start + n * 0.6) end = ls; }
+    return (start ? '… ' : '') + t.slice(start, end) + (end < t.length ? ' …' : '');
   }
   root.WikiSearch = { norm: norm, tokens: tokens, buildIndex: buildIndex, search: search, excerpt: excerpt, firstMatch: firstMatch };
   if (typeof module !== 'undefined') module.exports = root.WikiSearch;
