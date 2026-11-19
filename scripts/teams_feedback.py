@@ -33,13 +33,48 @@ if len(testo) < 3:
 testo = testo[:1000]
 
 
+SPIEGA = {
+    400: "Teams ha rifiutato il formato del messaggio: nel flusso controlla l'azione Post card in a chat or channel e che il contenuto della scheda sia Attachment adaptive card preso dal trigger.",
+    401: "Teams ha rifiutato la richiesta (401): l'indirizzo del flusso e senza firma (deve contenere sig=) oppure nel trigger non e impostato Who can trigger the flow = Anyone.",
+    403: "Teams ha rifiutato la richiesta (403): l'indirizzo del flusso e senza firma o non valido, oppure il trigger non e impostato su Anyone.",
+    404: "Teams non trova il flusso (404): indirizzo scritto male oppure flusso eliminato.",
+    410: "Il flusso non esiste piu (410): crea un nuovo flusso e aggiorna l'indirizzo.",
+    429: "Power Automate sta limitando le richieste (429): riprova tra qualche minuto.",
+    0: "Il servizio non e riuscito a raggiungere Teams (errore di rete): riprova e controlla l'indirizzo del flusso.",
+}
+
+
+SPIEGA_GH = {
+    401: "GitHub ha rifiutato il token (401): e scaduto o non valido. Creane uno nuovo e aggiorna il secret GITHUB_TOKEN.",
+    403: "GitHub ha negato l'operazione (403): al token manca il permesso Issues in lettura e scrittura sul repository dei feedback.",
+    404: "GitHub non trova il repository (404): controlla GITHUB_FEEDBACK_REPO (proprietario/nome) e che il token abbia accesso.",
+    410: "Nel repository dei feedback le Issues sono disattivate (410): attivale nelle impostazioni.",
+    422: "GitHub ha rifiutato i dati (422): controlla che le Issues siano attive nel repository dei feedback.",
+    0: "Il servizio non e riuscito a raggiungere GitHub (errore di rete): riprova.",
+}
+
+
+def spiega_gh(codice):
+    return SPIEGA_GH.get(codice) or "GitHub ha risposto con lo stato %s." % codice
+
+
+def spiega(codice):
+    return SPIEGA.get(codice) or ("Power Automate ha avuto un problema (%s): riprova piu tardi e controlla la cronologia del flusso." % codice if codice and codice >= 500 else "Teams ha risposto con lo stato %s." % codice)
+
+
 def post(url, body, headers):
     req = urllib.request.Request(url, data=json.dumps(body).encode(), method="POST", headers=dict({"Content-Type": "application/json", "User-Agent": "design-ops-feedback/1.0"}, **headers))
     try:
         with urllib.request.urlopen(req, timeout=30) as r:
-            return r.status
+            try:
+                return r.status, json.loads(r.read().decode() or "{}")
+            except Exception:
+                return r.status, {}
     except urllib.error.HTTPError as e:
-        return e.code
+        try:
+            return e.code, json.loads(e.read().decode() or "{}")
+        except Exception:
+            return e.code, {}
     except (urllib.error.URLError, OSError) as e:
         sys.exit("ERRORE: indirizzo non raggiungibile (%s)." % getattr(e, "reason", e))
 
@@ -71,12 +106,23 @@ else:
 
 if a.dry_run:
     print("Destinazione:", target.split("?")[0]); print(json.dumps(body, ensure_ascii=False, indent=2)); sys.exit(0)
-s = post(target, body, headers)
+diretto = bool(a.webhook and not a.url)
+s, risposta = post(target, body, headers)
 if s in (200, 202):
-    print("Feedback inviato.")
+    inviato = risposta.get("inviato") or []
+    print("Feedback inviato" + (" a: " + ", ".join(inviato) if inviato else "") + ".")
+    for canale, codice in (risposta.get("errori") or {}).items():
+        print("ATTENZIONE: %s non ha ricevuto il messaggio. %s" % (canale, spiega(codice) if canale == "teams" else spiega_gh(codice)))
+elif diretto:
+    sys.exit("ERRORE: invio non riuscito. " + spiega(s))
 elif s == 429:
     sys.exit("ERRORE: troppi invii, riprova tra qualche minuto.")
 elif s == 503:
-    sys.exit("ERRORE: il feedback non è attivo sul servizio (manca TEAMS_WEBHOOK_URL).")
+    sys.exit("ERRORE: il feedback non e attivo sul servizio (manca TEAMS_WEBHOOK_URL oppure GITHUB_TOKEN e GITHUB_FEEDBACK_REPO).")
+elif s == 502 and ("teams" in risposta or "github" in risposta):
+    righe = []
+    if "teams" in risposta: righe.append(spiega(risposta["teams"]))
+    if "github" in risposta: righe.append(spiega_gh(risposta["github"]))
+    sys.exit("ERRORE: il servizio ha ricevuto il messaggio ma nessun canale lo ha accettato. " + " ".join(righe))
 else:
     sys.exit("ERRORE: invio non riuscito (stato %s)." % s)

@@ -11,6 +11,22 @@ Chi usa la wiki può scrivere al team con il pulsante "Feedback": il messaggio a
 3. **Prova.** `python3 scripts/teams_feedback.py "Prova" --url https://design-ops-wiki.<sottodominio>.workers.dev`. Dopo qualche secondo il messaggio compare nel canale; il servizio risponde "Feedback inviato".
 4. **Controlla il sito.** Ricarica la pagina senza cache: nell'intestazione e nel piè di pagina c'è "Feedback". Se non lo vedi manca `WORKER_URL` (vedi `docs/setup-sito.md`).
 
+## Se "Anyone" non è disponibile: feedback tramite GitHub
+Un indirizzo del flusso senza `sig=` richiede un accesso Microsoft (Entra) che il servizio non può dare: capita quando l'organizzazione impone l'accesso con l'account aziendale, o quando l'impostazione "Anyone" non si applica al tuo ambiente. In quel caso il servizio salva ogni feedback come *issue* in un repository GitHub **privato**, e un flusso di Power Automate la porta in Teams. Non serve nessun accesso anonimo.
+
+1. **Crea un repository privato**, per esempio `design-ops-feedback`, con le Issues attive (lo sono di default).
+2. **Crea un token.** In GitHub: *Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token*. Come proprietario scegli il tuo utente, come accesso **Only select repositories** con solo il repository dei feedback, e in *Repository permissions* imposta **Issues: Read and write**. Scegli la scadenza più lunga consentita e metti un promemoria per rinnovarlo.
+3. **Salva due secret in Cloudflare** (*Workers & Pages → design-ops-wiki → Settings → Variables and secrets → Add → Secret*): `GITHUB_TOKEN` con il token e `GITHUB_FEEDBACK_REPO` con `proprietario/design-ops-feedback`. Poi distribuisci la modifica.
+4. **Prova.** `python3 scripts/teams_feedback.py "Prova" --url https://design-ops-wiki.<sottodominio>.workers.dev` deve rispondere "Feedback inviato a: github." e nel repository compare una issue.
+5. **Porta le issue in Teams.** In Power Automate (*Crea → Flusso cloud automatizzato*): trigger GitHub **When an issue is opened**, accedendo a GitHub quando richiesto, con proprietario e nome del repository dei feedback. Come azione **Post message in a chat or channel** (Teams): *Post as* **Flow bot**, *Post in* **Chat with Flow bot** (con la tua email in *Recipient*) oppure **Channel**, e nel messaggio titolo, testo e link dell'issue, presi dai contenuti dinamici del trigger.
+6. **Prova di nuovo:** il messaggio deve arrivare in Teams.
+
+Da sapere:
+- Ogni feedback resta come issue nel repository privato: si può tracciare e chiudere quando è gestito.
+- Se il token scade, lo script risponde "GitHub ha rifiutato il token (401)": ne crei uno nuovo e aggiorni il secret.
+- Si possono usare **entrambi i canali**: se sono configurati Teams e GitHub, il messaggio va a tutti e due, e lo script dice quali lo hanno ricevuto.
+- Non sono incluse altre strade, come autenticare il servizio con un'app Microsoft Entra: richiede un amministratore dell'organizzazione.
+
 ## Dove arrivano i messaggi
 
 | Destinazione | Chi li vede | Quando sceglierla |
@@ -45,7 +61,7 @@ Una scheda con: tipo, messaggio, pagina, testo cercato, contatto (se l'utente lo
 - Si accettano solo richieste dal sito, e il messaggio è limitato a 1.000 caratteri.
 - Al massimo 5 invii ogni 10 minuti per indirizzo. Un campo nascosto, che le persone non vedono, ferma i programmi automatici.
 - I link nel testo vengono neutralizzati, così un messaggio non può portare un collegamento cliccabile in Teams.
-- Il servizio non salva nulla e non registra l'indirizzo di chi scrive: i messaggi restano solo in Teams. Il modulo ricorda di non scrivere dati personali o riservati.
+- Il servizio non conserva nulla e non registra l'indirizzo di chi scrive: i messaggi restano in Teams e, se usi il canale GitHub, come issue nel repository privato. Il modulo ricorda di non scrivere dati personali o riservati.
 
 ## Se qualcosa non va
 
@@ -57,6 +73,28 @@ Una scheda con: tipo, messaggio, pagina, testo cercato, contatto (se l'utente lo
 | Il servizio risponde "invio non riuscito" (502) e in Power Automate compare l'errore 401 | Nel trigger non è impostato **Who can trigger the flow? = Anyone** | Cambia l'impostazione e salva il flusso |
 | Il feedback funzionava e ha smesso dopo un aggiornamento | `TEAMS_WEBHOOK_URL` era una variabile di testo e la pubblicazione l'ha cancellata | Ricrealo come secret (passo 2) |
 | "troppi invii" (429) | Limite di 5 messaggi in 10 minuti | Riprova più tardi |
+
+## Il servizio risponde 502: leggere il codice di Teams
+Un 502 significa che il servizio ha ricevuto il messaggio ma Teams lo ha rifiutato. Lo script `scripts/teams_feedback.py` mostra il codice con cui Teams ha risposto e lo spiega. Per provare l'indirizzo del flusso senza passare dal servizio, dal terminale (l'indirizzo va tra virgolette perché contiene il carattere `&`, e non va incollato in chat né nei file):
+`TEAMS_WEBHOOK_URL="<indirizzo completo>" python3 scripts/teams_feedback.py "Prova diretta"`
+
+| Codice di Teams | Causa probabile | Cosa fare |
+|---|---|---|
+| 401 o 403 | L'indirizzo è senza firma (deve contenere `sig=` dopo `api-version=1`) oppure il trigger non è su **Anyone** | Copia di nuovo l'indirizzo completo dal trigger e imposta **Who can trigger the flow? = Anyone** |
+| 404 o 410 | Indirizzo scritto male o flusso eliminato | Controlla l'indirizzo, oppure crea un nuovo flusso e aggiorna il secret |
+| 400 | Formato non accettato dal flusso | Nell'azione **Post card in a chat or channel** il contenuto della scheda deve essere **Attachment adaptive card** preso dal trigger |
+| 429 | Power Automate limita le richieste | Riprova tra qualche minuto |
+| 500 o più | Problema di Power Automate | Controlla la cronologia del flusso e riprova |
+| 0 | Il servizio non ha raggiunto Teams (rete) | Riprova e controlla l'indirizzo |
+
+Per il canale GitHub i codici sono questi:
+
+| Codice di GitHub | Causa probabile | Cosa fare |
+|---|---|---|
+| 401 | Token scaduto o non valido | Crea un nuovo token e aggiorna `GITHUB_TOKEN` |
+| 403 | Al token manca il permesso Issues in lettura e scrittura | Correggi i permessi del token |
+| 404 | Repository non trovato o token senza accesso | Controlla `GITHUB_FEEDBACK_REPO` (proprietario/nome) e l'accesso del token |
+| 410 o 422 | Issues disattivate nel repository | Attivale nelle impostazioni del repository |
 
 ## Da sapere
 - I flussi di Teams (Workflows) sono legati a chi li crea e non al canale: se il proprietario lascia l'organizzazione o disattiva il flusso, i messaggi si fermano. Aggiungi almeno un secondo proprietario in Power Automate.

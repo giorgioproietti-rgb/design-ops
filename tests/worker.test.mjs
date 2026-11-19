@@ -9,9 +9,10 @@ const out = resolve(root, 'dist', 'worker.bundle.mjs');
 await build({ entryPoints: [resolve(root, 'worker', 'index.js')], bundle: true, format: 'esm', platform: 'neutral', mainFields: ['module', 'main'], outfile: out, logLevel: 'error' });
 const worker = (await import(pathToFileURL(out).href)).default;
 const ORIGIN = 'https://org.github.io';
-let llmCalls = [], aiCalls = [], llmMode = 'ok', fails = 0, ip = 0, teamsCalls = [], teamsMode = 'ok';
+let llmCalls = [], aiCalls = [], llmMode = 'ok', fails = 0, ip = 0, teamsCalls = [], teamsMode = 'ok', ghCalls = [], ghMode = 'ok';
 globalThis.fetch = async (url, init) => {
-  if (String(url).startsWith('https://teams.test/')) { teamsCalls.push({ url: String(url), init }); return new Response('', { status: teamsMode === 'ko' ? 500 : 202 }); }
+  if (String(url).startsWith('https://api.github.com/repos/')) { ghCalls.push({ url: String(url), init }); if (ghMode === 'throw') throw new TypeError('network'); return new Response('{}', { status: ghMode === 'ok' ? 201 : parseInt(ghMode, 10) }); }
+  if (String(url).startsWith('https://teams.test/')) { teamsCalls.push({ url: String(url), init }); if (teamsMode === 'throw') throw new TypeError('network'); return new Response('', { status: teamsMode === 'ko' ? 500 : teamsMode === '401' ? 401 : 202 }); }
   llmCalls.push({ url, init });
   if (llmMode === 'ko') return new Response('err', { status: 500 });
   if (String(url).includes('anthropic')) return new Response(JSON.stringify({ content: [{ type: 'text', text: 'Risposta Anthropic [1].' }] }), { status: 200 });
@@ -117,7 +118,35 @@ teamsCalls = [];
 r = await post({ messaggio: 'm'.repeat(1500) }, WFB); check('messaggio lungo → tagliato a 1000 caratteri', JSON.parse(teamsCalls[0].init.body).attachments[0].content.body[2].text.length === 1000);
 teamsCalls = [];
 r = await post({ messaggio: 'sono un programma', sito: 'http://spam.it' }, WFB); d = await r.json(); check('campo trappola riempito → finto successo, Teams NON chiamato', r.status === 200 && d.ok && teamsCalls.length === 0);
-teamsMode = 'ko'; r = await post({ messaggio: 'prova con Teams spento' }, WFB); const tt = await r.text(); check('Teams non risponde → 502 senza dettagli né indirizzo', r.status === 502 && !tt.includes('teams.test') && !tt.includes('SEGRETO')); teamsMode = 'ok';
+teamsMode = 'ko'; r = await post({ messaggio: 'prova con Teams spento' }, WFB); const tt = await r.text(); check('Teams non risponde → 502 senza dettagli né indirizzo', r.status === 502 && !tt.includes('teams.test') && !tt.includes('SEGRETO')); 
+teamsMode = '401'; r = await post({ messaggio: 'prova con indirizzo senza firma' }, WFB); const t401 = await r.text(); check('Teams rifiuta (401) → 502 con il codice di Teams, senza indirizzo né secret', r.status === 502 && JSON.parse(t401).teams === 401 && !t401.includes('teams.test') && !t401.includes('SEGRETO'));
+teamsMode = 'throw'; r = await post({ messaggio: 'prova con rete assente' }, WFB); check('errore di rete verso Teams → 502 con teams: 0', r.status === 502 && JSON.parse(await r.text()).teams === 0); teamsMode = 'ok';
+
+console.log('— feedback tramite GitHub (archivio privato, poi un flusso lo porta in Teams)');
+const GH = { GITHUB_TOKEN: 'ghp_SEGRETO', GITHUB_FEEDBACK_REPO: 'giorgioproietti-rgb/design-ops-feedback' };
+const WGH = Object.assign({}, WAI, GH), WBOTH = Object.assign({}, WAI, GH, { TEAMS_WEBHOOK_URL: TEAMS });
+r = await worker.fetch(req(null, { method: 'GET' }), WGH); d = await r.json(); check('stato: solo GitHub attivo', d.feedback === true && d.canali.github === true && d.canali.teams === false && !JSON.stringify(d).includes('SEGRETO'));
+r = await post({ messaggio: 'ciao a tutti' }, Object.assign({}, WAI, { GITHUB_TOKEN: 'x' })); check('token senza repository → feedback non attivo (503)', r.status === 503);
+r = await post({ messaggio: 'ciao a tutti' }, Object.assign({}, WAI, { GITHUB_TOKEN: 'x', GITHUB_FEEDBACK_REPO: '../../etc' })); check('nome del repository non valido → ignorato (503)', r.status === 503);
+ghCalls = []; teamsCalls = [];
+r = await post({ tipo: 'errore', messaggio: 'Scrivete a anna@example.com e a @mario [clicca](http://x.it) per il passo 4', contatto: 'anna@example.com', pagina: { titolo: 'Il percorso · Wireframe', id: 's-5', path: '/design-ops/' }, ricerca: 'validazione', versione: '1.0.3' }, WGH); d = await r.json();
+const gc = ghCalls[0], issue = gc && JSON.parse(gc.init.body);
+check('valido → issue creata nel repository dei feedback, Teams non toccato', r.status === 200 && d.ok && d.inviato.join() === 'github' && ghCalls.length === 1 && teamsCalls.length === 0 && gc.url === 'https://api.github.com/repos/giorgioproietti-rgb/design-ops-feedback/issues');
+check('intestazioni: token, versione API, User-Agent', gc.init.headers.Authorization === 'Bearer ghp_SEGRETO' && gc.init.headers.Accept === 'application/vnd.github+json' && !!gc.init.headers['User-Agent'] && !gc.init.body.includes('ghp_SEGRETO'));
+check('titolo e etichette', issue.title.startsWith('[Errore] Scrivete a anna@') && JSON.stringify(issue.labels) === '["feedback","errore"]');
+check('corpo con contesto e link alla pagina', issue.body.includes('**Pagina:** Il percorso · Wireframe — ' + ORIGIN + '/design-ops/#s-5') && issue.body.includes('**Ricerca:** validazione') && issue.body.includes('**Plugin:** v1.0.3'));
+check('le menzioni non avvisano nessuno e i link sono neutralizzati', !/@mario/.test(issue.body) && issue.body.includes('@\u200bmario') && issue.body.includes('(clicca)(http://x.it)') && !issue.title.includes('@mario'));
+check('la risposta non rivela il token', !JSON.stringify(d).includes('SEGRETO'));
+ghCalls = []; teamsCalls = []; teamsMode = 'ko';
+r = await post({ messaggio: 'Teams giù, GitHub su' }, WBOTH); d = await r.json();
+check('due canali: Teams rifiuta ma GitHub accetta → 200 con il codice dell\'errore', r.status === 200 && d.inviato.join() === 'github' && d.errori.teams === 500 && ghCalls.length === 1 && teamsCalls.length === 1); teamsMode = 'ok';
+ghMode = '401'; teamsMode = 'ko';
+r = await post({ messaggio: 'tutti e due falliscono' }, WBOTH); d = await r.json();
+check('due canali che falliscono → 502 con i due codici, senza segreti', r.status === 502 && d.teams === 500 && d.github === 401 && !JSON.stringify(d).includes('SEGRETO') && !JSON.stringify(d).includes('teams.test'));
+teamsMode = 'ok'; ghMode = '422'; r = await post({ messaggio: 'issue disattivate' }, WGH); d = await r.json(); check('GitHub rifiuta (422) → 502 con il codice', r.status === 502 && d.github === 422 && !('teams' in d));
+ghMode = 'throw'; r = await post({ messaggio: 'rete assente' }, WGH); d = await r.json(); check('errore di rete verso GitHub → 502 con github: 0', r.status === 502 && d.github === 0); ghMode = 'ok';
+ghCalls = []; r = await post({ messaggio: 'sono un programma', sito: 'x' }, WGH); check('campo trappola: nessuna issue', r.status === 200 && ghCalls.length === 0);
+
 let lastFb; for (let i = 0; i < 7; i++) lastFb = await post({ messaggio: 'messaggio ripetuto ' + i }, WFB, { ip: '8.8.8.8' });
 check('limite di 5 invii per indirizzo → 429', lastFb.status === 429);
 r = await worker.fetch(req({ q: Q }), WAI); check('le domande all\'assistente funzionano ancora sul percorso principale', r.status === 200);

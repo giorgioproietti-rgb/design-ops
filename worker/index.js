@@ -117,9 +117,38 @@ export function feedbackCard(f, origin) {
   if (url) card.actions = [{ type: 'Action.OpenUrl', title: 'Apri la pagina', url }];
   return { type: 'message', attachments: [{ contentType: 'application/vnd.microsoft.card.adaptive', contentUrl: null, content: card }] };
 }
+const REPO_OK = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
+const nomention = x => String(x).replace(/@/g, '@\u200b'); // evita che un messaggio avvisi altre persone su GitHub
+export const feedbackChannels = env => ({ teams: !!env.TEAMS_WEBHOOK_URL, github: !!(env.GITHUB_TOKEN && REPO_OK.test(String(env.GITHUB_FEEDBACK_REPO || ''))) });
+export function feedbackIssue(f, origin) {
+  const url = f.path ? origin + f.path + (f.id ? '#' + f.id : '') : '', one = f.messaggio.replace(/\s+/g, ' ');
+  const righe = ['**Tipo:** ' + TIPI[f.tipo]];
+  if (f.titolo) righe.push('**Pagina:** ' + f.titolo + (url ? ' — ' + url : ''));
+  if (f.ricerca) righe.push('**Ricerca:** ' + f.ricerca);
+  if (f.contatto) righe.push('**Contatto:** ' + f.contatto);
+  if (f.versione) righe.push('**Plugin:** v' + f.versione);
+  return { title: nomention('[' + TIPI[f.tipo] + '] ' + (one.length > 70 ? one.slice(0, 67) + '…' : one)), body: nomention(righe.join('\n') + '\n\n---\n\n' + f.messaggio), labels: ['feedback', f.tipo] };
+}
+async function toTeams(env, f) {
+  try {
+    const r = await fetch(env.TEAMS_WEBHOOK_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(feedbackCard(f, env.ALLOWED_ORIGIN)) });
+    return r.ok ? { ok: true } : { ok: false, code: r.status };
+  } catch (e) { return { ok: false, code: 0 }; }
+}
+async function toGithub(env, f) {
+  try {
+    const r = await fetch('https://api.github.com/repos/' + env.GITHUB_FEEDBACK_REPO + '/issues', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + env.GITHUB_TOKEN, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'design-ops-wiki', 'Content-Type': 'application/json' },
+      body: JSON.stringify(feedbackIssue(f, env.ALLOWED_ORIGIN)),
+    });
+    return r.ok ? { ok: true } : { ok: false, code: r.status };
+  } catch (e) { return { ok: false, code: 0 }; }
+}
 async function handleFeedback(request, env) {
   if (request.headers.get('Origin') !== env.ALLOWED_ORIGIN) return reply({ error: 'origine non consentita' }, 403, env);
-  if (!env.TEAMS_WEBHOOK_URL) return reply({ error: 'feedback non attivo' }, 503, env);
+  const ch = feedbackChannels(env);
+  if (!ch.teams && !ch.github) return reply({ error: 'feedback non attivo' }, 503, env);
   if (fbTooMany(request.headers.get('CF-Connecting-IP') || 'n/d')) return reply({ error: 'troppi invii' }, 429, env);
   let b;
   try {
@@ -136,17 +165,19 @@ async function handleFeedback(request, env) {
     id: /^[a-z0-9-]{1,60}$/.test(String(pg.id || '')) ? pg.id : '', path: /^\/[A-Za-z0-9._~\-\/]{0,100}$/.test(String(pg.path || '')) ? pg.path : '',
     versione: /^[0-9.]{1,20}$/.test(String(b.versione || '')) ? b.versione : '',
   };
-  try {
-    const r = await fetch(env.TEAMS_WEBHOOK_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(feedbackCard(f, env.ALLOWED_ORIGIN)) });
-    if (!r.ok) return reply({ error: 'servizio non disponibile' }, 502, env);
-    return reply({ ok: true }, 200, env);
-  } catch (e) { return reply({ error: 'servizio non disponibile' }, 502, env); }
+  const jobs = [];
+  if (ch.teams) jobs.push(['teams', toTeams(env, f)]);
+  if (ch.github) jobs.push(['github', toGithub(env, f)]);
+  const res = await Promise.all(jobs.map(j => j[1])), inviato = [], errori = {};
+  jobs.forEach((j, i) => { if (res[i].ok) inviato.push(j[0]); else errori[j[0]] = res[i].code; }); // solo i numeri: servono a capire la causa
+  if (inviato.length) return reply({ ok: true, inviato, errori }, 200, env);
+  return reply(Object.assign({ error: 'servizio non disponibile' }, errori), 502, env);
 }
 
 export async function handle(request, env) {
   if (!env.ALLOWED_ORIGIN) return new Response('Configurazione mancante', { status: 500 });
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: corsHeaders(env) });
-  if (request.method === 'GET') return reply({ ok: true, version: kb.version, sections: SECTIONS.length, provider: provider(env), feedback: !!env.TEAMS_WEBHOOK_URL }, 200, env);
+  if (request.method === 'GET') return reply({ ok: true, version: kb.version, sections: SECTIONS.length, provider: provider(env), feedback: feedbackChannels(env).teams || feedbackChannels(env).github, canali: feedbackChannels(env) }, 200, env);
   if (request.method !== 'POST') return reply({ error: 'metodo non consentito' }, 405, env);
   if (new URL(request.url).pathname.replace(/\/+$/, '') === '/feedback') return handleFeedback(request, env);
   if (request.headers.get('Origin') !== env.ALLOWED_ORIGIN) return reply({ error: 'origine non consentita' }, 403, env);
