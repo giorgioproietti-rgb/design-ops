@@ -88,6 +88,10 @@ r = await worker.fetch(req({ q: 'quali comandi posso usare' }), OPENAI); check('
 
 
 console.log('— feedback su Teams');
+const pre = await worker.fetch(new Request('https://w.dev/feedback', { method: 'OPTIONS', headers: { Origin: ORIGIN, 'Access-Control-Request-Method': 'POST', 'Access-Control-Request-Headers': 'content-type' } }), WAI);
+check('richiesta preliminare del browser (CORS) su /feedback: consentita', pre.status === 204 && pre.headers.get('Access-Control-Allow-Origin') === ORIGIN && /POST/.test(pre.headers.get('Access-Control-Allow-Methods')) && /content-type/i.test(pre.headers.get('Access-Control-Allow-Headers')) && pre.headers.get('Vary') === 'Origin');
+const gets = await worker.fetch(new Request('https://w.dev/', { method: 'GET', headers: { Origin: ORIGIN } }), WAI);
+check('lo stato del servizio è leggibile dal sito (CORS sulla GET)', gets.status === 200 && gets.headers.get('Access-Control-Allow-Origin') === ORIGIN);
 const TEAMS = 'https://teams.test/workflows/abc?sig=SEGRETO';
 const WFB = Object.assign({}, WAI, { TEAMS_WEBHOOK_URL: TEAMS });
 const fb = (body, o = {}) => req(body, Object.assign({}, o));
@@ -134,6 +138,11 @@ const gc = ghCalls[0], issue = gc && JSON.parse(gc.init.body);
 check('valido → issue creata nel repository dei feedback, Teams non toccato', r.status === 200 && d.ok && d.inviato.join() === 'github' && ghCalls.length === 1 && teamsCalls.length === 0 && gc.url === 'https://api.github.com/repos/giorgioproietti-rgb/design-ops-feedback/issues');
 check('intestazioni: token, versione API, User-Agent', gc.init.headers.Authorization === 'Bearer ghp_SEGRETO' && gc.init.headers.Accept === 'application/vnd.github+json' && !!gc.init.headers['User-Agent'] && !gc.init.body.includes('ghp_SEGRETO'));
 check('titolo e etichette', issue.title.startsWith('[Errore] Scrivete a anna@') && JSON.stringify(issue.labels) === '["feedback","errore"]');
+check('l\'issue è assegnata al proprietario del repository (serve al trigger "assegnato all\'utente")', JSON.stringify(issue.assignees) === '["giorgioproietti-rgb"]');
+ghCalls = []; await post({ messaggio: 'assegnatario indicato a mano' }, Object.assign({}, WGH, { GITHUB_FEEDBACK_ASSIGNEE: 'anna-rossi' })); check('assegnatario indicato con GITHUB_FEEDBACK_ASSIGNEE', JSON.stringify(JSON.parse(ghCalls[0].init.body).assignees) === '["anna-rossi"]');
+ghCalls = []; await post({ messaggio: 'nessun assegnatario' }, Object.assign({}, WGH, { GITHUB_FEEDBACK_ASSIGNEE: '-' })); check('"-" non assegna a nessuno', JSON.stringify(JSON.parse(ghCalls[0].init.body).assignees) === '[]');
+ghCalls = []; await post({ messaggio: 'nome non valido' }, Object.assign({}, WGH, { GITHUB_FEEDBACK_ASSIGNEE: '../x y' })); check('nome utente non valido → ignorato', JSON.stringify(JSON.parse(ghCalls[0].init.body).assignees) === '[]');
+ghCalls = [];
 check('corpo con contesto e link alla pagina', issue.body.includes('**Pagina:** Il percorso · Wireframe — ' + ORIGIN + '/design-ops/#s-5') && issue.body.includes('**Ricerca:** validazione') && issue.body.includes('**Plugin:** v1.0.3'));
 check('le menzioni non avvisano nessuno e i link sono neutralizzati', !/@mario/.test(issue.body) && issue.body.includes('@\u200bmario') && issue.body.includes('(clicca)(http://x.it)') && !issue.title.includes('@mario'));
 check('la risposta non rivela il token', !JSON.stringify(d).includes('SEGRETO'));

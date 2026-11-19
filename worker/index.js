@@ -120,14 +120,18 @@ export function feedbackCard(f, origin) {
 const REPO_OK = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 const nomention = x => String(x).replace(/@/g, '@\u200b'); // evita che un messaggio avvisi altre persone su GitHub
 export const feedbackChannels = env => ({ teams: !!env.TEAMS_WEBHOOK_URL, github: !!(env.GITHUB_TOKEN && REPO_OK.test(String(env.GITHUB_FEEDBACK_REPO || ''))) });
-export function feedbackIssue(f, origin) {
+const LOGIN_OK = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$/;
+// Chi riceve le issue: GITHUB_FEEDBACK_ASSIGNEE se indicato ("-" per non assegnarle a nessuno), altrimenti il proprietario del repository.
+// Serve al trigger di Power Automate "assegnato all'utente", che parte solo per le issue assegnate all'account collegato.
+export const feedbackAssignee = env => { const v = String(env.GITHUB_FEEDBACK_ASSIGNEE || '').trim(), o = String(env.GITHUB_FEEDBACK_REPO || '').split('/')[0]; if (v === '-') return ''; const a = v || o; return LOGIN_OK.test(a) ? a : ''; };
+export function feedbackIssue(f, origin, assignee) {
   const url = f.path ? origin + f.path + (f.id ? '#' + f.id : '') : '', one = f.messaggio.replace(/\s+/g, ' ');
   const righe = ['**Tipo:** ' + TIPI[f.tipo]];
   if (f.titolo) righe.push('**Pagina:** ' + f.titolo + (url ? ' — ' + url : ''));
   if (f.ricerca) righe.push('**Ricerca:** ' + f.ricerca);
   if (f.contatto) righe.push('**Contatto:** ' + f.contatto);
   if (f.versione) righe.push('**Plugin:** v' + f.versione);
-  return { title: nomention('[' + TIPI[f.tipo] + '] ' + (one.length > 70 ? one.slice(0, 67) + '…' : one)), body: nomention(righe.join('\n') + '\n\n---\n\n' + f.messaggio), labels: ['feedback', f.tipo] };
+  return { title: nomention('[' + TIPI[f.tipo] + '] ' + (one.length > 70 ? one.slice(0, 67) + '…' : one)), body: nomention(righe.join('\n') + '\n\n---\n\n' + f.messaggio), labels: ['feedback', f.tipo], assignees: assignee ? [assignee] : [] };
 }
 async function toTeams(env, f) {
   try {
@@ -140,7 +144,7 @@ async function toGithub(env, f) {
     const r = await fetch('https://api.github.com/repos/' + env.GITHUB_FEEDBACK_REPO + '/issues', {
       method: 'POST',
       headers: { Authorization: 'Bearer ' + env.GITHUB_TOKEN, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'design-ops-wiki', 'Content-Type': 'application/json' },
-      body: JSON.stringify(feedbackIssue(f, env.ALLOWED_ORIGIN)),
+      body: JSON.stringify(feedbackIssue(f, env.ALLOWED_ORIGIN, feedbackAssignee(env))),
     });
     return r.ok ? { ok: true } : { ok: false, code: r.status };
   } catch (e) { return { ok: false, code: 0 }; }

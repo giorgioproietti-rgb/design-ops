@@ -164,7 +164,7 @@ La ricerca cerca per parole in tutta la documentazione. Il pulsante "Chiedi all'
 
 ### Come segnalo un problema o propongo un miglioramento?
 <!-- argomento: problemi -->
-Usa il pulsante "Feedback" del sito: il messaggio arriva direttamente al team su Teams, con la pagina o la ricerca da cui parti. Scegli se è un suggerimento, un errore o una domanda senza risposta. Le correzioni escono in una nuova versione del plugin e compaiono nella sezione Rilasci.
+Usa il pulsante "Feedback" del sito: il messaggio arriva direttamente al team, con la pagina o la ricerca da cui parti. Scegli se è un suggerimento, un errore o una domanda senza risposta. Le correzioni escono in una nuova versione del plugin e compaiono nella sezione Rilasci.
 
 ### Cosa significano gli ID che compaiono nei file?
 <!-- argomento: progetto-e-file -->

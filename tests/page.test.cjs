@@ -15,10 +15,16 @@ const kbOf = f => JSON.parse(fs.readFileSync(f, 'utf8').match(/id="kb">([\s\S]*?
 (async () => {
   const DATA = kbOf(WITH), kb = DATA.sections, FAQ = kb.filter(s => s.group === 'Domande frequenti'), PERC = kb.filter(s => s.group === 'Il percorso');
   const inst = kb.find(s => s.title === 'Come installo il plugin?'), upd = kb.find(s => s.title === 'Come si aggiorna il plugin?');
-  const calls = [], fbCalls = []; let mode = 'ok', fbStatus = 200;
+  const calls = [], fbCalls = []; let mode = 'ok', fbStatus = 200, getDown = false, getFeedback = true, fbThrow = false;
   const fakeFetch = async (url, init) => {
+    if (!init || !init.body) { if (getDown) throw new TypeError('network'); return { ok: true, status: 200, json: async () => ({ ok: true, version: '1.0.3', sections: 409, provider: 'workersai', feedback: getFeedback, canali: { teams: false, github: getFeedback } }) }; }
     const body = JSON.parse(init.body);
-    if (String(url).endsWith('/feedback')) { fbCalls.push({ url, body }); return { ok: fbStatus === 200, status: fbStatus, json: async () => ({ ok: fbStatus === 200 }) }; }
+    if (String(url).endsWith('/feedback')) {
+      fbCalls.push({ url, body }); if (fbThrow) throw new TypeError('network');
+      if (fbStatus === 502) return { ok: false, status: 502, json: async () => ({ error: 'servizio non disponibile', teams: 401, github: 404 }) };
+      if (fbStatus === 200) return { ok: true, status: 200, json: async () => ({ ok: true, inviato: ['github'], errori: { teams: 401 } }) };
+      return { ok: false, status: fbStatus, json: async () => ({}) };
+    }
     calls.push({ url, body }); if (mode === '429') return { ok: false, status: 429, json: async () => ({}) };
     return { ok: true, status: 200, json: async () => ({ answer: 'Rimuovi le skill singole [1]. Poi carica lo zip [2].', sources: [{ n: 1, id: inst.id, title: inst.title }, { n: 2, id: upd.id, title: upd.title }] }) };
   };
@@ -99,7 +105,7 @@ const kbOf = f => JSON.parse(fs.readFileSync(f, 'utf8').match(/id="kb">([\s\S]*?
   const openFb = async () => { [...$$('#hnav button')].find(b => b.textContent === 'Feedback').click(); await tick(); };
   await go('#' + inst.id); await openFb();
   check('si apre una finestra con messaggio, tipo e contatto', $('#fb-ov [role="dialog"]').getAttribute('aria-modal') === 'true' && $$('#fb-ov input[type="radio"]').length === 4 && !!$('#fb-msg') && !!$('#fb-con') && d.activeElement === $('#fb-msg'));
-  check('campo trappola nascosto alle persone', !!$('#fb-ov input[name="sito"]') && $('#fb-ov input[name="sito"]').getAttribute('aria-hidden') === 'true' && $('#fb-ov input[name="sito"]').tabIndex === -1);
+  check('campo trappola nascosto alle persone', !!$('#fb-ov input[name="campo-extra"]') && $('#fb-ov input[name="campo-extra"]').getAttribute('aria-hidden') === 'true' && $('#fb-ov input[name="campo-extra"]').tabIndex === -1);
   check('avviso sulla riservatezza e contesto inviato', $('#fb-ov').textContent.includes('Non scrivere dati personali') && $('#fb-ov').textContent.includes('Come installo il plugin?'));
   $('#fb-ov form').dispatchEvent(new w.Event('submit', { cancelable: true, bubbles: true })); await tick();
   check('messaggio vuoto: errore leggibile, nessun invio', $('#fb-ov .msg.err').textContent.includes('almeno 3 caratteri') && fbCalls.length === 0);
@@ -119,10 +125,36 @@ const kbOf = f => JSON.parse(fs.readFileSync(f, 'utf8').match(/id="kb">([\s\S]*?
   check('da "domanda senza risposta" il testo cercato viene allegato', $('#fb-ov').textContent.includes('ricerca “ricetta della carbonara”'));
   key('Escape', $('#fb-msg'));
 
+  console.log('— errori del modulo, spiegati');
+  const sendFb = async txt => { await openFb(); $('#fb-msg').value = txt; $('#fb-ov form').dispatchEvent(new w.Event('submit', { cancelable: true, bubbles: true })); await tick(80); };
+  await go('#' + inst.id); fbStatus = 502; await sendFb('Prova con errore dei canali');
+  check('nessun canale accetta: messaggio chiaro con il dettaglio tecnico', $('#fb-ov .msg.err').textContent.includes('Non sono riuscito a consegnare il messaggio') && $('#fb-ov .msg.err').textContent.includes('dettaglio: Teams 401 · GitHub 404')); key('Escape', $('#fb-msg'));
+  fbStatus = 200; fbThrow = true; await sendFb('Prova senza rete');
+  check('servizio non raggiungibile dal browser: messaggio dedicato', $('#fb-ov .msg.err').textContent.includes('Non riesco a contattare il servizio')); key('Escape', $('#fb-msg')); fbThrow = false;
+
+  console.log('— diagnosi del servizio');
+  await go('#diagnosi'); await tick(80);
+  const prova = async () => { [...$$('button')].find(b => b.textContent.startsWith('Invia un messaggio di prova') || b.textContent === 'Invio…').click(); await tick(80); };
+  check('mostra indirizzo, origine della pagina e raggiungibilità', $('h1.t').textContent === 'Diagnosi del servizio' && $('main').textContent.includes('http://127.0.0.1:8787') && $('main').textContent.includes('https://org.github.io') && $('main').textContent.includes('OK · il browser raggiunge il servizio'));
+  check('mostra i canali di feedback configurati', $('main').textContent.includes('canali configurati: GitHub'));
+  fbCalls.length = 0; fbStatus = 200; await prova();
+  check('messaggio di prova consegnato, con il contesto della diagnosi', fbCalls.length === 1 && fbCalls[0].body.messaggio === 'Prova dalla pagina di diagnosi' && /consegnato a: github/.test($('main').textContent));
+  check('se un canale fallisce, lo spiega in italiano', $('main').textContent.includes('Teams ha rifiutato la richiesta (401)'));
+  fbStatus = 502; await prova();
+  check('nessun canale: spiega Teams e GitHub', $('main').textContent.includes('nessun canale ha accettato') && $('main').textContent.includes('Teams ha rifiutato la richiesta (401)') && $('main').textContent.includes('GitHub non trova il repository (404)') && !$('main').textContent.includes('consegnato a: github'));
+  fbStatus = 503; await prova(); check('canali non configurati: dice cosa serve', $('main').textContent.includes('nessun canale configurato') && $('main').textContent.includes('GITHUB_TOKEN'));
+  fbStatus = 403; await prova(); check('origine non consentita: indica il valore giusto', $('main').textContent.includes('ALLOWED_ORIGIN deve essere esattamente https://org.github.io'));
+  fbStatus = 200; fbThrow = true; await prova(); check('servizio non raggiungibile: lo dice', $('main').textContent.includes('il browser non riesce a raggiungere il servizio')); fbThrow = false;
+  getFeedback = false; [...$$('button')].find(b => b.textContent === 'Controlla di nuovo').click(); await tick(80);
+  check('nessun canale configurato sul servizio: lo segnala', $('main').textContent.includes('Problema · nessun canale configurato'));
+  getDown = true; [...$$('button')].find(b => b.textContent === 'Controlla di nuovo').click(); await tick(80);
+  check('servizio non raggiungibile al controllo: lo segnala', $('main').textContent.includes('Problema · il browser non riesce a raggiungere il servizio')); getDown = false; getFeedback = true;
+
   console.log('— senza servizio');
   dom = await load(WITHOUT, null, null); w = dom.window; d = w.document;
   submit('come installo il plugin'); await tick();
   check('solo ricerca: risposta migliore presente, nessun assistente né feedback', !!$('.best') && !$('.ask') && ![...$$('button')].some(b => /Feedback|feedback|Scrivi al team/.test(b.textContent)));
   await go('#percorso'); check('il percorso funziona anche senza servizio', $$('.steps > li').length === 12);
+  await go('#diagnosi'); check('senza servizio la diagnosi lo dice', $('main').textContent.includes('non collegato') && $('main').textContent.includes('WORKER_URL'));
   console.log(fails ? '\n' + fails + ' controlli falliti' : '\nPagina: tutti i controlli superati'); process.exit(fails ? 1 : 0);
 })().catch(e => { console.error('ERRORE', e); process.exit(2); });

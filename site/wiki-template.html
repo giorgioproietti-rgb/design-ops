@@ -148,6 +148,10 @@ ol.steps>li:last-child::after{display:none}
 .sw{display:inline-block;width:14px;height:14px;margin-right:8px;vertical-align:-2px;border:1.5px solid var(--accent);background:var(--accent-soft);border-radius:50%}
 .sw.dia{border-color:var(--quiet);background:transparent;border-radius:0;transform:rotate(45deg) scale(.8)}
 .sw.dsh{border:1.5px dashed var(--quiet);background:transparent;border-radius:999px;width:22px;height:12px;vertical-align:0}
+.diag .drow{display:flex;gap:16px;padding:12px 0;border-bottom:1px solid var(--line)}
+.diag .drow b{flex:0 0 190px}
+.diag .drow span{overflow-wrap:anywhere}
+@media (max-width:720px){.diag .drow{display:block}.diag .drow b{display:block}}
 .panel{border:1.5px solid var(--accent);border-radius:var(--r3);padding:20px 24px;background:var(--bg);box-shadow:var(--shadow)}
 .panel h2{font-size:22px;line-height:1.3;margin:4px 0}
 .panel .sum{color:var(--quiet);margin:0 0 8px}
@@ -403,6 +407,49 @@ ol.steps>li:last-child::after{display:none}
     setCtx('Il percorso · ' + cur.d.title, '');
   }
 
+  /* ---------- diagnosi del servizio (per chi gestisce il sito) ---------- */
+  var SP_TEAMS = { 400: 'Teams ha rifiutato il formato: nel flusso il contenuto della scheda deve essere “Attachment adaptive card”.', 401: 'Teams ha rifiutato la richiesta (401): l’indirizzo del flusso è senza firma (sig=) oppure il trigger non è impostato su “Anyone”.', 403: 'Teams ha rifiutato la richiesta (403): indirizzo del flusso senza firma o non valido.', 404: 'Teams non trova il flusso (404): indirizzo errato o flusso eliminato.', 410: 'Il flusso non esiste più (410).', 429: 'Power Automate limita le richieste (429): riprova più tardi.', 0: 'Il servizio non ha raggiunto Teams (rete).' };
+  var SP_GH = { 401: 'GitHub ha rifiutato il token (401): scaduto o non valido.', 403: 'GitHub ha negato l’operazione (403): al token manca il permesso Issues in lettura e scrittura.', 404: 'GitHub non trova il repository (404): controlla GITHUB_FEEDBACK_REPO e l’accesso del token.', 410: 'Nel repository le Issues sono disattivate (410).', 422: 'GitHub ha rifiutato i dati (422): controlla che le Issues siano attive nel repository.', 0: 'Il servizio non ha raggiunto GitHub (rete).' };
+  function why(map, code) { return map[code] || (code >= 500 ? 'Il servizio esterno ha un problema (' + code + '): riprova più tardi.' : 'Risposta inattesa (' + code + ').'); }
+  function diagnosi() {
+    clear(); setView('list'); place(hs); setCtx('Diagnosi', ''); document.title = 'Diagnosi · Design Ops';
+    main.appendChild(crumbs([['Home', '#']], 'Diagnosi del servizio'));
+    main.appendChild(el('h1', { 'class': 't', text: 'Diagnosi del servizio' }));
+    main.appendChild(el('p', { 'class': 'lead', text: 'Per chi gestisce il sito: controlla che il servizio sia raggiungibile e che il feedback venga consegnato.' }));
+    var info = el('div', { 'class': 'diag' }), chk = el('div', { 'class': 'diag', 'aria-live': 'polite' }), tst = el('div', { 'class': 'diag', 'aria-live': 'polite' });
+    function put(box, l, v, ok) { box.appendChild(el('div', { 'class': 'drow' }, [el('b', { text: l }), el('span', { text: (ok === true ? 'OK · ' : ok === false ? 'Problema · ' : '') + v })])); }
+    main.appendChild(info);
+    if (!META.workerUrl) { put(info, 'Servizio', 'non collegato: quando il sito è stato costruito mancava la variabile WORKER_URL (vedi docs/setup-sito.md).', false); window.scrollTo(0, 0); return; }
+    var base = META.workerUrl.replace(/\/+$/, '');
+    put(info, 'Indirizzo del servizio', base, null); put(info, 'Origine di questa pagina', location.origin + ' (deve coincidere con ALLOWED_ORIGIN)', null); put(info, 'Versione del sito', 'plugin v' + META.version + ' · ' + META.date, null);
+    var b1 = el('button', { type: 'button', 'class': 's2', text: 'Controlla di nuovo' }), b2 = el('button', { type: 'button', 'class': 'p', text: 'Invia un messaggio di prova' });
+    main.appendChild(el('div', { 'class': 'pnav' }, [b1, b2])); main.appendChild(chk); main.appendChild(tst);
+    async function check() {
+      chk.innerHTML = '';
+      try {
+        var r = await fetch(base), d = await r.json();
+        put(chk, 'Raggiungibilità', 'il browser raggiunge il servizio (versione ' + d.version + ', ' + d.sections + ' sezioni, risposte: ' + d.provider + ').', true);
+        if (d.feedback) put(chk, 'Feedback', 'canali configurati: ' + ['teams', 'github'].filter(function (k) { return d.canali && d.canali[k]; }).map(function (k) { return k === 'teams' ? 'Teams' : 'GitHub'; }).join(', ') + '.', true);
+        else put(chk, 'Feedback', 'nessun canale configurato: servono TEAMS_WEBHOOK_URL oppure GITHUB_TOKEN e GITHUB_FEEDBACK_REPO come secret, e vanno distribuiti.', false);
+      } catch (e) { put(chk, 'Raggiungibilità', 'il browser non riesce a raggiungere il servizio: indirizzo errato, servizio non pubblicato o richiesta bloccata.', false); }
+    }
+    async function prova() {
+      tst.innerHTML = ''; b2.disabled = true; b2.textContent = 'Invio…';
+      try {
+        var r = await fetch(base + '/feedback', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tipo: 'altro', messaggio: 'Prova dalla pagina di diagnosi', contatto: '', pagina: { titolo: 'Diagnosi del servizio', id: '', path: location.pathname }, ricerca: '', versione: META.version, sito: '' }) }), d = {};
+        try { d = await r.json(); } catch (_) {}
+        if (r.status === 200) { put(tst, 'Messaggio di prova', 'consegnato a: ' + ((d.inviato || []).join(', ') || 'nessun canale') + '.', true); Object.keys(d.errori || {}).forEach(function (k) { put(tst, k === 'teams' ? 'Teams' : 'GitHub', why(k === 'teams' ? SP_TEAMS : SP_GH, d.errori[k]), false); }); }
+        else if (r.status === 502) { put(tst, 'Messaggio di prova', 'nessun canale ha accettato il messaggio.', false); if ('teams' in d) put(tst, 'Teams', why(SP_TEAMS, d.teams), false); if ('github' in d) put(tst, 'GitHub', why(SP_GH, d.github), false); }
+        else if (r.status === 503) put(tst, 'Messaggio di prova', 'nessun canale configurato: servono TEAMS_WEBHOOK_URL oppure GITHUB_TOKEN e GITHUB_FEEDBACK_REPO come secret, e vanno distribuiti.', false);
+        else if (r.status === 429) put(tst, 'Messaggio di prova', 'troppi invii: riprova tra qualche minuto.', false);
+        else if (r.status === 403) put(tst, 'Messaggio di prova', 'origine non consentita: ALLOWED_ORIGIN deve essere esattamente ' + location.origin + '.', false);
+        else put(tst, 'Messaggio di prova', 'risposta inattesa (' + r.status + ').', false);
+      } catch (e) { put(tst, 'Messaggio di prova', 'il browser non riesce a raggiungere il servizio: indirizzo errato, servizio non pubblicato o richiesta bloccata dall’origine.', false); }
+      b2.disabled = false; b2.textContent = 'Invia un messaggio di prova';
+    }
+    b1.onclick = check; b2.onclick = prova; check(); window.scrollTo(0, 0);
+  }
+
   /* ---------- feedback verso Teams ---------- */
   function trapTab(e, box) {
     if (e.key !== 'Tab') return;
@@ -418,10 +465,10 @@ ol.steps>li:last-child::after{display:none}
     var tipi = [['suggerimento', 'Suggerimento'], ['errore', 'Errore'], ['domanda', 'Domanda senza risposta'], ['altro', 'Altro']];
     var opts = el('div', { 'class': 'opts' }); tipi.forEach(function (t, i) { var r = el('input', { type: 'radio', name: 'tipo', value: t[0] }); if (i === 0) r.checked = true; opts.appendChild(el('label', null, [r, t[1]])); });
     var msg = el('textarea', { id: 'fb-msg', maxlength: '1000', required: 'required', 'aria-describedby': 'fb-h1' }), con = el('input', { type: 'text', id: 'fb-con', maxlength: '120', autocomplete: 'off' });
-    var hp = el('input', { type: 'text', name: 'sito', tabindex: '-1', autocomplete: 'off', 'aria-hidden': 'true', 'class': 'sr' }), status = el('p', { 'class': 'msg', role: 'status' });
+    var hp = el('input', { type: 'text', name: 'campo-extra', tabindex: '-1', autocomplete: 'off', 'aria-hidden': 'true', 'class': 'sr' }), status = el('p', { 'class': 'msg', role: 'status' });
     var send = el('button', { type: 'submit', 'class': 'p', text: 'Invia al team' }), cancel = el('button', { type: 'button', 'class': 's2', text: 'Annulla' });
     var ctxLine = (c.titolo || c.ricerca) ? el('p', { 'class': 'hint', text: 'Contesto inviato: ' + [c.titolo, c.ricerca ? 'ricerca “' + c.ricerca + '”' : ''].filter(Boolean).join(' · ') }) : null;
-    var f = el('form', { novalidate: 'novalidate' }, [el('fieldset', null, [el('legend', { text: 'Di cosa si tratta?' }), opts]), el('label', { 'class': 'f', 'for': 'fb-msg', text: 'Il tuo messaggio' }), msg, el('p', { 'class': 'hint', id: 'fb-h1', text: 'Il messaggio arriva al team su Teams. Non scrivere dati personali o riservati.' }), el('label', { 'class': 'f', 'for': 'fb-con', text: 'Contatto (facoltativo)' }), con, el('p', { 'class': 'hint', text: 'Nome o email, solo se vuoi una risposta.' }), hp, ctxLine, status, el('div', { 'class': 'act' }, [cancel, send])]);
+    var f = el('form', { novalidate: 'novalidate' }, [el('fieldset', null, [el('legend', { text: 'Di cosa si tratta?' }), opts]), el('label', { 'class': 'f', 'for': 'fb-msg', text: 'Il tuo messaggio' }), msg, el('p', { 'class': 'hint', id: 'fb-h1', text: 'Il messaggio arriva al team. Non scrivere dati personali o riservati.' }), el('label', { 'class': 'f', 'for': 'fb-con', text: 'Contatto (facoltativo)' }), con, el('p', { 'class': 'hint', text: 'Nome o email, solo se vuoi una risposta.' }), hp, ctxLine, status, el('div', { 'class': 'act' }, [cancel, send])]);
     var dlg = el('div', { 'class': 'dlg', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'fb-t' }, [el('h2', { id: 'fb-t', text: 'Invia un feedback' }), f]), ov = el('div', { 'class': 'ov', id: 'fb-ov' }, [dlg]);
     document.body.appendChild(ov); msg.focus();
     cancel.onclick = closeFeedback; ov.addEventListener('mousedown', function (e) { if (e.target === ov) closeFeedback(); });
@@ -435,9 +482,9 @@ ol.steps>li:last-child::after{display:none}
         var r = await fetch(META.workerUrl.replace(/\/+$/, '') + '/feedback', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tipo: tipo, messaggio: text, contatto: con.value.trim(), pagina: { titolo: c.titolo, id: c.id, path: location.pathname }, ricerca: c.ricerca, versione: META.version, sito: hp.value }) });
         if (r.status === 429) throw { m: 'Hai inviato troppi messaggi: riprova tra qualche minuto.' };
         if (r.status === 503) throw { m: 'Il feedback non è ancora attivo. Scrivi al team con un altro canale.' };
-        if (!r.ok) throw { m: 'Non sono riuscito a inviare il messaggio. Riprova più tardi.' };
-        f.innerHTML = ''; f.appendChild(el('p', { text: 'Grazie! Il messaggio è arrivato al team su Teams.' })); var ok = el('button', { type: 'button', 'class': 'p', text: 'Chiudi' }); ok.onclick = closeFeedback; f.appendChild(el('div', { 'class': 'act' }, [ok])); ok.focus();
-      } catch (er) { status.className = 'msg err'; status.textContent = (er && er.m) || 'Non sono riuscito a inviare il messaggio. Riprova più tardi.'; send.disabled = false; send.textContent = 'Invia al team'; }
+        if (!r.ok) { var inf = {}; try { inf = await r.json(); } catch (_) {} var det = [('teams' in inf) ? 'Teams ' + inf.teams : '', ('github' in inf) ? 'GitHub ' + inf.github : ''].filter(Boolean).join(' · '); throw { m: 'Non sono riuscito a consegnare il messaggio. Riprova più tardi.', d: det }; }
+        f.innerHTML = ''; f.appendChild(el('p', { text: 'Grazie! Il messaggio è arrivato al team.' })); var ok = el('button', { type: 'button', 'class': 'p', text: 'Chiudi' }); ok.onclick = closeFeedback; f.appendChild(el('div', { 'class': 'act' }, [ok])); ok.focus();
+      } catch (er) { status.className = 'msg err'; status.textContent = (er && er.m) ? er.m + (er.d ? ' (dettaglio: ' + er.d + ')' : '') : 'Non riesco a contattare il servizio. Controlla la connessione e riprova.'; send.disabled = false; send.textContent = 'Invia al team'; }
     });
   }
 
@@ -538,7 +585,7 @@ ol.steps>li:last-child::after{display:none}
 
   function route() {
     var h = location.hash.replace(/^#/, '');
-    if (h && byId[h]) article(h); else if (/^t-/.test(h)) topic(h.slice(2)); else if (/^g-/.test(h)) group(h.slice(2)); else if (/^percorso(-|$)/.test(h) && FLOW) flowView(h.slice(9)); else if (lastQ) results(lastQ); else home();
+    if (h === 'diagnosi') diagnosi(); else if (h && byId[h]) article(h); else if (/^t-/.test(h)) topic(h.slice(2)); else if (/^g-/.test(h)) group(h.slice(2)); else if (/^percorso(-|$)/.test(h) && FLOW) flowView(h.slice(9)); else if (lastQ) results(lastQ); else home();
   }
   window.addEventListener('hashchange', route);
   chrome(); form.hidden = false; route();
