@@ -13,6 +13,11 @@
 
 Il plugin non contiene la documentazione: la documentazione vive online e si ricostruisce da sola.
 
+## Applicare un aggiornamento ricevuto come zip
+Dalla cartella del repository: `bash scripts/apply_update.sh ~/Downloads/<nome-dello-zip>.zip`. Lo script **unisce** i file dello zip a quelli esistenti e mostra l'elenco dei file cambiati; poi si fa commit e push. In alternativa, `unzip -o <zip>` nella cartella del repository.
+
+Non trascinare le cartelle dello zip nel Finder scegliendo "Sostituisci": il Finder sostituisce l'intera cartella e cancella i file che lo zip non contiene (script, guide, configurazione del servizio). Se capita, il flusso "Sito" fallisce al primo passo.
+
 ## Cambiare la documentazione
 1. Modifica i file in `docs/`. Le risposte stanno in `docs/faq.md`: una domanda per titolo `###`.
 2. Fai commit su `main`. Il flusso "Sito" ricostruisce e ripubblica il sito, e aggiorna anche il servizio delle risposte intelligenti.
