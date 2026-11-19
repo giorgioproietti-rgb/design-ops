@@ -44,6 +44,7 @@ s, d = call("GET")
 if s != 200 or not d.get("ok"):
     sys.exit("ERRORE: il servizio non risponde (GET %s). Controlla l'indirizzo e che il Worker sia pubblicato." % s)
 print("Servizio attivo: versione %s, %s sezioni, fornitore %s." % (d.get("version"), d.get("sections"), d.get("provider")))
+print("Feedback su Teams: %s." % ("attivo" if d.get("feedback") else "NON attivo (manca il secret TEAMS_WEBHOOK_URL)"))
 
 s, d = call("POST", {"q": "Come installo il plugin?"})
 if s == 429:
